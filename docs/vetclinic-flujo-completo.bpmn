@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://vetclinic.local/bpmn">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="VetClinic - Sistema de gestion veterinaria" processRef="Process_1" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_1" name="Recepcion">
+        <bpmn:flowNodeRef>Task_Pago</bpmn:flowNodeRef><bpmn:flowNodeRef>End_Fin</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_Fact</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_Reg</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_Agenda</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_2" name="Veterinario">
+        <bpmn:flowNodeRef>Task_Hosp</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_Uso</bpmn:flowNodeRef><bpmn:flowNodeRef>Gw_Hosp</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_Consulta</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_HC</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_3" name="Administracion">
+        <bpmn:flowNodeRef>Task_Cfg</bpmn:flowNodeRef><bpmn:flowNodeRef>End_Admin</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_Inv</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_Rep</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_4" name="Sistema (API / Base de datos)">
+        <bpmn:flowNodeRef>Task_Stock</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_Valid</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_Error</bpmn:flowNodeRef><bpmn:flowNodeRef>Gw_Stock</bpmn:flowNodeRef><bpmn:flowNodeRef>Gw_Role</bpmn:flowNodeRef><bpmn:flowNodeRef>Task_Login</bpmn:flowNodeRef><bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef><bpmn:flowNodeRef>End_Denied</bpmn:flowNodeRef><bpmn:flowNodeRef>Gw_Valid</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Inicio"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:userTask id="Task_Login" name="Iniciar sesion (usuario/contrasena o PIN)"><bpmn:incoming>F1</bpmn:incoming><bpmn:outgoing>F2</bpmn:outgoing></bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Valid" name="Credenciales validas?"><bpmn:incoming>F2</bpmn:incoming><bpmn:outgoing>F3</bpmn:outgoing><bpmn:outgoing>F4</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Denied" name="Acceso denegado"><bpmn:incoming>F3</bpmn:incoming></bpmn:endEvent>
+    <bpmn:exclusiveGateway id="Gw_Role" name="Rol Administrador?"><bpmn:incoming>F4</bpmn:incoming><bpmn:outgoing>F5</bpmn:outgoing><bpmn:outgoing>F9</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_Inv" name="Gestionar inventario y lotes"><bpmn:incoming>F5</bpmn:incoming><bpmn:outgoing>F6</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="Task_Rep" name="Ver reportes KPI"><bpmn:incoming>F6</bpmn:incoming><bpmn:outgoing>F7</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="Task_Cfg" name="Configurar usuarios e IVA"><bpmn:incoming>F7</bpmn:incoming><bpmn:outgoing>F8</bpmn:outgoing></bpmn:userTask>
+    <bpmn:endEvent id="End_Admin" name="Fin administracion"><bpmn:incoming>F8</bpmn:incoming></bpmn:endEvent>
+    <bpmn:userTask id="Task_Reg" name="Registrar tutor y paciente"><bpmn:incoming>F9</bpmn:incoming><bpmn:outgoing>F10</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="Task_Agenda" name="Agendar cita"><bpmn:incoming>F10</bpmn:incoming><bpmn:outgoing>F11</bpmn:outgoing></bpmn:userTask>
+    <bpmn:serviceTask id="Task_Valid" name="Validar disponibilidad (sin solapamiento)"><bpmn:incoming>F11</bpmn:incoming><bpmn:outgoing>F12</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:userTask id="Task_Consulta" name="Consulta medica"><bpmn:incoming>F12</bpmn:incoming><bpmn:outgoing>F13</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="Task_HC" name="Historia clinica, recetas y vacunas"><bpmn:incoming>F13</bpmn:incoming><bpmn:outgoing>F14</bpmn:outgoing></bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Hosp" name="Requiere hospitalizacion?"><bpmn:incoming>F14</bpmn:incoming><bpmn:outgoing>F15</bpmn:outgoing><bpmn:outgoing>F17</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_Hosp" name="Hospitalizacion: evoluciones y alta"><bpmn:incoming>F15</bpmn:incoming><bpmn:outgoing>F16</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="Task_Uso" name="Registrar uso de inventario"><bpmn:incoming>F16</bpmn:incoming><bpmn:incoming>F17</bpmn:incoming><bpmn:outgoing>F18</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="Task_Fact" name="Emitir factura"><bpmn:incoming>F18</bpmn:incoming><bpmn:incoming>F24</bpmn:incoming><bpmn:outgoing>F19</bpmn:outgoing></bpmn:userTask>
+    <bpmn:serviceTask id="Task_Stock" name="IVA + lotes FEFO + descuento stock (xmin)"><bpmn:incoming>F19</bpmn:incoming><bpmn:outgoing>F20</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gw_Stock" name="Stock suficiente?"><bpmn:incoming>F20</bpmn:incoming><bpmn:outgoing>F21</bpmn:outgoing><bpmn:outgoing>F22</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Error" name="Error: stock insuficiente (rollback)"><bpmn:incoming>F21</bpmn:incoming><bpmn:outgoing>F24</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:userTask id="Task_Pago" name="Registrar pago"><bpmn:incoming>F22</bpmn:incoming><bpmn:outgoing>F23</bpmn:outgoing></bpmn:userTask>
+    <bpmn:endEvent id="End_Fin" name="Fin"><bpmn:incoming>F23</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="Task_Login" />
+    <bpmn:sequenceFlow id="F2" sourceRef="Task_Login" targetRef="Gw_Valid" />
+    <bpmn:sequenceFlow id="F3" name="No" sourceRef="Gw_Valid" targetRef="End_Denied" />
+    <bpmn:sequenceFlow id="F4" name="Si" sourceRef="Gw_Valid" targetRef="Gw_Role" />
+    <bpmn:sequenceFlow id="F5" name="Administrador" sourceRef="Gw_Role" targetRef="Task_Inv" />
+    <bpmn:sequenceFlow id="F6" sourceRef="Task_Inv" targetRef="Task_Rep" />
+    <bpmn:sequenceFlow id="F7" sourceRef="Task_Rep" targetRef="Task_Cfg" />
+    <bpmn:sequenceFlow id="F8" sourceRef="Task_Cfg" targetRef="End_Admin" />
+    <bpmn:sequenceFlow id="F9" name="Recepcion / Veterinario" sourceRef="Gw_Role" targetRef="Task_Reg" />
+    <bpmn:sequenceFlow id="F10" sourceRef="Task_Reg" targetRef="Task_Agenda" />
+    <bpmn:sequenceFlow id="F11" sourceRef="Task_Agenda" targetRef="Task_Valid" />
+    <bpmn:sequenceFlow id="F12" sourceRef="Task_Valid" targetRef="Task_Consulta" />
+    <bpmn:sequenceFlow id="F13" sourceRef="Task_Consulta" targetRef="Task_HC" />
+    <bpmn:sequenceFlow id="F14" sourceRef="Task_HC" targetRef="Gw_Hosp" />
+    <bpmn:sequenceFlow id="F15" name="Si" sourceRef="Gw_Hosp" targetRef="Task_Hosp" />
+    <bpmn:sequenceFlow id="F16" name="Alta" sourceRef="Task_Hosp" targetRef="Task_Uso" />
+    <bpmn:sequenceFlow id="F17" name="No" sourceRef="Gw_Hosp" targetRef="Task_Uso" />
+    <bpmn:sequenceFlow id="F18" sourceRef="Task_Uso" targetRef="Task_Fact" />
+    <bpmn:sequenceFlow id="F19" sourceRef="Task_Fact" targetRef="Task_Stock" />
+    <bpmn:sequenceFlow id="F20" sourceRef="Task_Stock" targetRef="Gw_Stock" />
+    <bpmn:sequenceFlow id="F21" name="No" sourceRef="Gw_Stock" targetRef="Task_Error" />
+    <bpmn:sequenceFlow id="F22" name="Si" sourceRef="Gw_Stock" targetRef="Task_Pago" />
+    <bpmn:sequenceFlow id="F23" sourceRef="Task_Pago" targetRef="End_Fin" />
+    <bpmn:sequenceFlow id="F24" name="Reintentar" sourceRef="Task_Error" targetRef="Task_Fact" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Participant_1_di" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="40" y="40" width="2840" height="760" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_1_di" bpmnElement="Lane_1" isHorizontal="true">
+        <dc:Bounds x="70" y="40" width="2810" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_2_di" bpmnElement="Lane_2" isHorizontal="true">
+        <dc:Bounds x="70" y="210" width="2810" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_3_di" bpmnElement="Lane_3" isHorizontal="true">
+        <dc:Bounds x="70" y="410" width="2810" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_4_di" bpmnElement="Lane_4" isHorizontal="true">
+        <dc:Bounds x="70" y="580" width="2810" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
+        <dc:Bounds x="132" y="672" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Login_di" bpmnElement="Task_Login">
+        <dc:Bounds x="230" y="655" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Valid_di" bpmnElement="Gw_Valid" isMarkerVisible="true">
+        <dc:Bounds x="425" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Denied_di" bpmnElement="End_Denied">
+        <dc:Bounds x="432" y="752" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Role_di" bpmnElement="Gw_Role" isMarkerVisible="true">
+        <dc:Bounds x="575" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Inv_di" bpmnElement="Task_Inv">
+        <dc:Bounds x="680" y="460" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Rep_di" bpmnElement="Task_Rep">
+        <dc:Bounds x="830" y="460" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Cfg_di" bpmnElement="Task_Cfg">
+        <dc:Bounds x="980" y="460" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Admin_di" bpmnElement="End_Admin">
+        <dc:Bounds x="1182" y="477" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Reg_di" bpmnElement="Task_Reg">
+        <dc:Bounds x="680" y="90" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Agenda_di" bpmnElement="Task_Agenda">
+        <dc:Bounds x="830" y="90" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Valid_di" bpmnElement="Task_Valid">
+        <dc:Bounds x="975" y="655" width="150" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Consulta_di" bpmnElement="Task_Consulta">
+        <dc:Bounds x="1130" y="275" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_HC_di" bpmnElement="Task_HC">
+        <dc:Bounds x="1280" y="275" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Hosp_di" bpmnElement="Gw_Hosp" isMarkerVisible="true">
+        <dc:Bounds x="1475" y="285" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Hosp_di" bpmnElement="Task_Hosp">
+        <dc:Bounds x="1580" y="275" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Uso_di" bpmnElement="Task_Uso">
+        <dc:Bounds x="1730" y="275" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Fact_di" bpmnElement="Task_Fact">
+        <dc:Bounds x="1880" y="90" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Stock_di" bpmnElement="Task_Stock">
+        <dc:Bounds x="2025" y="655" width="150" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Stock_di" bpmnElement="Gw_Stock" isMarkerVisible="true">
+        <dc:Bounds x="2225" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Error_di" bpmnElement="Task_Error">
+        <dc:Bounds x="2325" y="725" width="150" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Pago_di" bpmnElement="Task_Pago">
+        <dc:Bounds x="2480" y="90" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Fin_di" bpmnElement="End_Fin">
+        <dc:Bounds x="2682" y="107" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="F1_di" bpmnElement="F1">
+        <di:waypoint x="168" y="690" />
+        <di:waypoint x="230" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F2_di" bpmnElement="F2">
+        <di:waypoint x="370" y="690" />
+        <di:waypoint x="425" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F3_di" bpmnElement="F3">
+        <di:waypoint x="450" y="715" />
+        <di:waypoint x="450" y="752" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F4_di" bpmnElement="F4">
+        <di:waypoint x="475" y="690" />
+        <di:waypoint x="575" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F5_di" bpmnElement="F5">
+        <di:waypoint x="625" y="690" />
+        <di:waypoint x="652" y="690" />
+        <di:waypoint x="652" y="495" />
+        <di:waypoint x="680" y="495" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F6_di" bpmnElement="F6">
+        <di:waypoint x="820" y="495" />
+        <di:waypoint x="830" y="495" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F7_di" bpmnElement="F7">
+        <di:waypoint x="970" y="495" />
+        <di:waypoint x="980" y="495" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F8_di" bpmnElement="F8">
+        <di:waypoint x="1120" y="495" />
+        <di:waypoint x="1182" y="495" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F9_di" bpmnElement="F9">
+        <di:waypoint x="625" y="690" />
+        <di:waypoint x="652" y="690" />
+        <di:waypoint x="652" y="125" />
+        <di:waypoint x="680" y="125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F10_di" bpmnElement="F10">
+        <di:waypoint x="820" y="125" />
+        <di:waypoint x="830" y="125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F11_di" bpmnElement="F11">
+        <di:waypoint x="970" y="125" />
+        <di:waypoint x="972" y="125" />
+        <di:waypoint x="972" y="690" />
+        <di:waypoint x="975" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F12_di" bpmnElement="F12">
+        <di:waypoint x="1125" y="690" />
+        <di:waypoint x="1128" y="690" />
+        <di:waypoint x="1128" y="310" />
+        <di:waypoint x="1130" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F13_di" bpmnElement="F13">
+        <di:waypoint x="1270" y="310" />
+        <di:waypoint x="1280" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F14_di" bpmnElement="F14">
+        <di:waypoint x="1420" y="310" />
+        <di:waypoint x="1475" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F15_di" bpmnElement="F15">
+        <di:waypoint x="1525" y="310" />
+        <di:waypoint x="1580" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F16_di" bpmnElement="F16">
+        <di:waypoint x="1720" y="310" />
+        <di:waypoint x="1730" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F17_di" bpmnElement="F17">
+        <di:waypoint x="1525" y="310" />
+        <di:waypoint x="1545" y="310" />
+        <di:waypoint x="1545" y="255" />
+        <di:waypoint x="1710" y="255" />
+        <di:waypoint x="1710" y="310" />
+        <di:waypoint x="1730" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F18_di" bpmnElement="F18">
+        <di:waypoint x="1870" y="310" />
+        <di:waypoint x="1875" y="310" />
+        <di:waypoint x="1875" y="125" />
+        <di:waypoint x="1880" y="125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F19_di" bpmnElement="F19">
+        <di:waypoint x="2020" y="125" />
+        <di:waypoint x="2022" y="125" />
+        <di:waypoint x="2022" y="690" />
+        <di:waypoint x="2025" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F20_di" bpmnElement="F20">
+        <di:waypoint x="2175" y="690" />
+        <di:waypoint x="2225" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F21_di" bpmnElement="F21">
+        <di:waypoint x="2275" y="690" />
+        <di:waypoint x="2300" y="690" />
+        <di:waypoint x="2300" y="760" />
+        <di:waypoint x="2325" y="760" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F22_di" bpmnElement="F22">
+        <di:waypoint x="2275" y="690" />
+        <di:waypoint x="2378" y="690" />
+        <di:waypoint x="2378" y="125" />
+        <di:waypoint x="2480" y="125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F23_di" bpmnElement="F23">
+        <di:waypoint x="2620" y="125" />
+        <di:waypoint x="2682" y="125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F24_di" bpmnElement="F24">
+        <di:waypoint x="2325" y="760" />
+        <di:waypoint x="2172" y="760" />
+        <di:waypoint x="2172" y="125" />
+        <di:waypoint x="2020" y="125" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "command": "dotnet",
+      "type": "process",
+      "args": ["build", "${workspaceFolder}/backend/VetClinic.sln"],
+      "problemMatcher": "$msCompile",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "backend: start",
+      "type": "shell",
+      "command": "dotnet run --project ${workspaceFolder}/backend/src/VetClinic.Api -c Debug --urls http://localhost:8080",
+      "problemMatcher": "$msCompile",
+      "isBackground": false
+    },
+    {
+      "label": "frontend: start",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "problemMatcher": "$tsc",
+      "isBackground": false
+    },
+    {
+      "label": "db: up",
+      "type": "shell",
+      "command": "docker compose -f ${workspaceFolder}/docker-compose.yml up -d postgres",
+      "problemMatcher": []
+    }
+  ]
+}

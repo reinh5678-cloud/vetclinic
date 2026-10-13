@@ -1,0 +1,29 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+*.nupkg
+
+# Node / Vite
+node_modules/
+dist/
+*.log
+
+# Entornos
+.env
+.env.local
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Artefactos
+**/appsettings.*.local.json
+**/appsettings.local.json
+
+# Uploads de adjuntos (rayos X, ecografías, documentos)
+**/uploads/
+
+# Backups de base de datos
+backups/
