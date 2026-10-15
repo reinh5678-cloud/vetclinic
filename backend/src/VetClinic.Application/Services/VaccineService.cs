@@ -92,42 +92,9 @@ public async Task<VaccineApplicationDto?> AddAsync(int petId, AddVaccineRequest 
             throw new InvalidOperationException($"«{vaccine.Name}» está inactivo; no se puede aplicar");
 
         const decimal dose = 1m;
-        if (vaccine.StockQuantity < dose)
-            throw new InvalidOperationException($"Stock insuficiente para «{vaccine.Name}» (disponible: {vaccine.StockQuantity:F3}, requerida: {dose:F3})");
+        await Fefo.ConsumeAsync(vaccine, _lots, _movements, dose, StockMovementType.SalidaUsoInterno,
+            "Aplicación de vacuna", _currentUser.UserId, ct);
 
-        var lots = await _lots.Query()
-            .Where(l => l.InventoryItemId == vaccine.Id && l.IsActive && l.AvailableQuantity > 0)
-            .ToListAsync(ct);
-        lots = lots
-            .OrderByDescending(l => l.ExpirationDate.HasValue)
-            .ThenBy(l => l.ExpirationDate)
-            .ThenBy(l => l.Id)
-            .ToList();
-
-        var remaining = dose;
-        foreach (var lot in lots)
-        {
-            if (remaining <= 0) break;
-
-            var take = Math.Min(lot.AvailableQuantity, remaining);
-            lot.AvailableQuantity -= take;
-            remaining -= take;
-            _lots.Update(lot);
-            await _movements.AddAsync(new StockMovement
-            {
-                InventoryItemId = vaccine.Id,
-                ProductLotId = lot.Id,
-                Type = StockMovementType.SalidaUsoInterno,
-                Quantity = take,
-                Description = "Aplicación de vacuna",
-                PerformedById = _currentUser.UserId
-            }, ct);
-        }
-
-        if (remaining > 0)
-            throw new InvalidOperationException($"Stock insuficiente para «{vaccine.Name}» (faltan {remaining:F3} disponibles en lotes activos)");
-
-        vaccine.StockQuantity -= dose;
         _inventory.Update(vaccine);
     }
 

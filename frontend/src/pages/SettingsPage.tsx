@@ -1,19 +1,18 @@
-import { useState } from 'react';
-import UsersPanel from './settings/UsersPanel';
-import RolesPanel from './settings/RolesPanel';
-import SystemPanel from './settings/SystemPanel';
+import { NavLink, Outlet } from 'react-router-dom';
 
 const TABS = [
-  { id: 'usuarios', label: 'Usuarios' },
-  { id: 'roles', label: 'Roles' },
-  { id: 'parametros', label: 'Parámetros' },
-] as const;
-
-type TabId = (typeof TABS)[number]['id'];
+  { to: 'clinica', label: 'Clínica' },
+  { to: 'facturacion', label: 'Facturación' },
+  { to: 'agenda', label: 'Agenda' },
+  { to: 'inventario', label: 'Inventario' },
+  { to: 'seguridad', label: 'Seguridad' },
+  { to: 'notificaciones', label: 'Notificaciones' },
+  { to: 'usuarios', label: 'Usuarios' },
+  { to: 'roles', label: 'Roles' },
+  { to: 'sistema', label: 'Sistema' },
+];
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<TabId>('usuarios');
-
   return (
     <div className="page">
       <div className="page-header">
@@ -23,25 +22,25 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex flex-wrap gap-1 border-b border-slate-200">
         {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`-mb-px cursor-pointer border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-              tab === t.id
-                ? 'border-teal-700 text-teal-800'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
-            }`}
+          <NavLink
+            key={t.to}
+            to={t.to}
+            className={({ isActive }) =>
+              `-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                isActive
+                  ? 'border-teal-700 text-teal-800'
+                  : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+              }`
+            }
           >
             {t.label}
-          </button>
+          </NavLink>
         ))}
       </div>
 
-      {tab === 'usuarios' && <UsersPanel />}
-      {tab === 'roles' && <RolesPanel />}
-      {tab === 'parametros' && <SystemPanel />}
+      <Outlet />
     </div>
   );
 }

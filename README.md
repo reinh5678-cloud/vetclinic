@@ -12,7 +12,7 @@ Proyecto demostrativo con arquitectura por capas y propósitos de aprendizaje.
 | ORM / BD | **EF Core 8 + PostgreSQL 16** |
 | Auth | **JWT Bearer** (roles por claim) |
 | Frontend | **React 19 + TypeScript + Vite** |
-| Infra local | **Docker Compose** (PostgreSQL) |
+| Infra local | **Docker Compose** (PostgreSQL + API .NET) |
 
 ## Estructura
 
@@ -20,6 +20,7 @@ Proyecto demostrativo con arquitectura por capas y propósitos de aprendizaje.
 vetclinic/
 ├─ backend/
 │  ├─ VetClinic.sln
+│  ├─ Dockerfile                    # Imagen de la API (multi-stage: sdk → aspnet)
 │  └─ src/
 │     ├─ VetClinic.Domain/         # Entidades y enums (16 entidades)
 │     ├─ VetClinic.Application/    # DTOs, interfaces y servicios (lógica de negocio)
@@ -28,7 +29,7 @@ vetclinic/
 ├─ frontend/                       # SPA React (Vite), proxy /api → :8080
 │   Pantallas: Login, Dashboard, Pacientes, Agenda, Historia Clínica,
 │   Hospitalización, Inventario, Facturación, Configuración
-├─ docker-compose.yml              # PostgreSQL 16
+├─ docker-compose.yml              # PostgreSQL 16 + API .NET
 └─ docs/
 ```
 
@@ -38,7 +39,7 @@ vetclinic/
 |---|---|---|
 | Autenticación | `/api/auth` | público |
 | Pacientes y tutores | `/api/patients` | `patients.view` (lectura) / `patients.manage` (escritura) |
-| Agenda / citas | `/api/appointments` | todos (valida cruce de horarios) |
+| Agenda / citas | `/api/appointments` | `appointments.view` (lectura) / `appointments.manage` (escritura) |
 | Historia clínica | `/api/medical-records` | Veterinario, Administrador |
 | Hospitalización | `/api/hospitalizations` | Veterinario, Administrador |
 | Inventario / farmacia | `/api/inventory` | Veterinario, Administrador |
@@ -48,28 +49,40 @@ vetclinic/
 
 ## Puesta en marcha
 
-Requisitos: **.NET 8 SDK**, **Node 20+**, **Docker Desktop** (para PostgreSQL).
+Requisitos: **Docker Desktop** y **Node 20+**. El **backend y PostgreSQL corren en Docker**; el frontend (Vite) corre en Node local para tener *hot-reload*.
 
 ```bash
-# 1) Base de datos (PostgreSQL en Docker)
-docker compose up -d postgres
+# 1) Configuración (opcional). Copia la plantilla y ajusta los valores.
+#    docker compose lee estas variables automáticamente.
+cp .env.example .env
 
-# 2) Configuración local (secretos NO versionados)
-#    Copia la plantilla y ajusta si es necesario
-cp backend/src/VetClinic.Api/appsettings.local.example.json backend/src/VetClinic.Api/appsettings.local.json
-
-# 3) Backend (aplica migraciones + seed automáticamente)
-dotnet run --project backend/src/VetClinic.Api --urls http://localhost:8080
+# 2) Backend + base de datos: construye la imagen de la API y arranca PostgreSQL y la API.
+docker compose up -d --build
+# API:     http://localhost:8080
 # Swagger: http://localhost:8080/swagger
+# (la API aplica migraciones y seed automáticamente al arrancar)
 
-# 4) Frontend
+# 3) Frontend (Node local)
 cd frontend
 npm install
 npm run dev
 # App: http://localhost:5173
 ```
 
-> **Secretos**: `Jwt:Key` y la cadena de conexión ya no se versionan. Se leen de `appsettings.local.json` (gitignored) o, alternativamente, de variables de entorno: `Jwt__Key` y `ConnectionStrings__DefaultConnection` (usa `__` para anidar). Para la BD, `docker compose` toma `POSTGRES_PASSWORD` desde `.env` (ver `.env.example`). El backend falla al arrancar si `Jwt:Key` falta o tiene menos de 32 caracteres.
+El proxy de Vite (`frontend/vite.config.ts`) reenvía `/api` a `http://localhost:8080`, que es el puerto que publica el contenedor de la API; no hay que cambiar nada.
+
+### Comandos útiles (backend en Docker)
+
+```bash
+docker compose logs -f api     # ver logs de la API en vivo
+docker compose stop api        # detener solo la API
+docker compose down            # detener y eliminar contenedores (conserva la BD)
+docker compose up -d --build api   # reconstruir tras cambios en el backend
+```
+
+> **Secretos**: la cadena de conexión y `Jwt:Key` NO se versionan. Con Docker se inyectan por variables de entorno desde `.env` (ver `.env.example`): `ConnectionStrings__DefaultConnection` y `Jwt__Key` (usa `__` para anidar). El backend falla al arrancar si `Jwt:Key` falta o tiene menos de 32 caracteres.
+>
+> **Arranque local sin Docker (opcional)**: si prefieres correr la API con el SDK (`dotnet run`) contra el PostgreSQL en Docker, copia `backend/src/VetClinic.Api/appsettings.local.example.json` a `appsettings.local.json` y ejecuta `dotnet run --project backend/src/VetClinic.Api --urls http://localhost:8080`. No uses ambos a la vez: el puerto `8080` quedaría ocupado. **Importante:** si la API corre dentro de Docker, la conexión usa el host `postgres`; si corre local con el SDK, debe usar `localhost`.
 
 ### Usuarios demo (seed)
 
@@ -184,6 +197,16 @@ Pantalla `/pacientes` (`patients.view` para consultar; `patients.manage` para cr
 
 **Validaciones** (`400`): nombre del paciente y nombre/apellido del tutor obligatorios; peso no negativo; el tutor asignado debe existir. **Autorización**: cada endpoint exige `patients.view` o `patients.manage` mediante la política `perm:<código>` (atributo `RequirePermission`); sin el permiso → `403`.
 
+## Agenda / citas
+
+Pantalla `/agenda` (`appointments.view` para consultar; `appointments.manage` para crear/reprogramar). Vistas **Hoy**, **Próximas** y **Todas**, con filtros por veterinario y estado.
+- **Listar**: `GET /api/appointments?from=&to=&vetId=&status=&petId=` (tope 500). También `GET /api/appointments/upcoming`, `GET /api/appointments/pet/{petId}` y `GET /api/appointments/{id}`.
+- **Agendar**: `POST /api/appointments` (fecha/hora, duración, urgencia, motivo, paciente, veterinario).
+- **Reprogramar**: `PUT /api/appointments/{id}` (mismos campos). No permitido en estados terminales.
+- **Cambiar estado**: `PATCH /api/appointments/{id}/status` con `notes` opcional, respetando las transiciones permitidas.
+
+**Validaciones**: duración 5–480 min; fecha no más de 5 min en el pasado; paciente existente; veterinario existente, activo y con rol `Veterinario`; sin solapamiento (estados activos `Programada`/`EnEspera`/`EnConsulta`, excluyendo la propia cita) → `409 Conflict`. Estados terminales (`Completada`, `Cancelada`) no se reprograman.
+
 ## Documentación
 
 - `docs/architecture.md` — diagramas (flujo de trabajo, modelo relacional, arquitectura).
@@ -218,9 +241,9 @@ schtasks /create /tn "VetClinicBackup" /tr "powershell -ExecutionPolicy Bypass -
 schtasks /run /tn "VetClinicBackup"   # probar ejecución
 ```
 
-> Nota: la restauración usa `--clean --if-exists` sobre la base `vetclinic`; detén el backend (la API) antes de restaurar para evitar conexiones activas. La API vuelve a aplicar migraciones al arrancar.
+> Nota: la restauración usa `--clean --if-exists` sobre la base `vetclinic`; detén la API antes de restaurar para evitar conexiones activas (`docker compose stop api`). Al volver a arrancarla, aplica las migraciones automáticamente.
 
-> Nota: la API debe arrancar con `ASPNETCORE_ENVIRONMENT=Development` para habilitar Swagger en `http://localhost:8080/swagger`.
+> Nota: `docker compose` arranca la API con `ASPNETCORE_ENVIRONMENT=Development`, por lo que Swagger queda disponible en `http://localhost:8080/swagger`.
 
 ## Backlog — Evolución del modelo de datos (plan aprobado)
 

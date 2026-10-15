@@ -1,0 +1,333 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e14]:
+      - generic [ref=f1e15]: VetClinic
+      - generic [ref=f1e16]: Sistema de gestión
+    - navigation [ref=f1e17]:
+      - link "Dashboard" [ref=f1e18] [cursor=pointer]:
+        - /url: /
+      - link "Pacientes" [ref=f1e21] [cursor=pointer]:
+        - /url: /pacientes
+      - link "Agenda" [ref=f1e28] [cursor=pointer]:
+        - /url: /agenda
+      - link "Historia Clínica" [ref=f1e31] [cursor=pointer]:
+        - /url: /historia
+      - link "Hospitalización" [ref=f1e34] [cursor=pointer]:
+        - /url: /hospitalizacion
+      - link "Inventario" [ref=f1e37] [cursor=pointer]:
+        - /url: /inventario
+      - link "Facturación" [ref=f1e40] [cursor=pointer]:
+        - /url: /facturacion
+      - link "Configuración" [ref=f1e43] [cursor=pointer]:
+        - /url: /configuracion
+    - generic [ref=f1e48]:
+      - generic [ref=f1e49]: A
+      - generic [ref=f1e50]:
+        - paragraph [ref=f1e51]: Administrador
+        - paragraph [ref=f1e52]: Administrador
+      - button "Salir" [ref=f1e53] [cursor=pointer]
+  - main [ref=f1e56]:
+    - generic [ref=f1e57]:
+      - button "Cambiar por PIN" [ref=f1e58] [cursor=pointer]
+      - generic [ref=f1e59]: A
+    - generic [ref=f1e62]:
+      - generic [ref=f1e63]:
+        - generic [ref=f1e64]:
+          - heading "Inventario y Farmacia" [level=2] [ref=f1e65]
+          - paragraph [ref=f1e66]: Control de stock por lote, reposición y vencimientos.
+        - button "+ Nuevo artículo" [ref=f1e67] [cursor=pointer]
+      - generic [ref=f1e68]:
+        - button "Artículos" [active] [ref=f1e69] [cursor=pointer]
+        - button "Lotes por vencer" [ref=f1e70] [cursor=pointer]
+      - generic [ref=f1e397]:
+        - generic [ref=f1e398]:
+          - generic [ref=f1e399]: Buscar
+          - textbox "Nombre o código…" [ref=f1e400]
+        - generic [ref=f1e401]:
+          - generic [ref=f1e402]: Categoría
+          - combobox [ref=f1e403]:
+            - option "Todas" [selected]
+            - option "Alimentos"
+            - option "Antibióticos"
+            - option "Antiinflamatorios"
+            - option "Antiparasitarios"
+            - option "Insumos"
+            - option "Otros"
+            - option "Parasiticidas"
+            - option "Vacunas"
+        - generic [ref=f1e404]:
+          - checkbox "Solo bajo stock" [ref=f1e405]
+          - text: Solo bajo stock
+        - generic [ref=f1e406]:
+          - checkbox "Incluir inactivos" [ref=f1e407]
+          - text: Incluir inactivos
+      - table [ref=f1e409]:
+        - rowgroup [ref=f1e410]:
+          - row [ref=f1e411]:
+            - columnheader "Código" [ref=f1e412]
+            - columnheader "Artículo" [ref=f1e413]
+            - columnheader "Categoría" [ref=f1e414]
+            - columnheader "Stock" [ref=f1e415]
+            - columnheader "Stock mín." [ref=f1e416]
+            - columnheader "Precio" [ref=f1e417]
+            - columnheader "Fracc." [ref=f1e418]
+            - columnheader "Estado" [ref=f1e419]
+            - columnheader "Acciones" [ref=f1e420]
+        - rowgroup [ref=f1e421]:
+          - row [ref=f1e422]:
+            - cell "MED-001" [ref=f1e423]
+            - cell "Amoxicilina 250mg" [ref=f1e424]
+            - cell "Antibióticos" [ref=f1e425]
+            - cell "8 tab" [ref=f1e426]
+            - cell "20" [ref=f1e427]
+            - cell "$5,50" [ref=f1e428]
+            - cell "No" [ref=f1e429]
+            - cell "REPOSICIÓN" [ref=f1e430]
+            - cell [ref=f1e432]:
+              - generic [ref=f1e433]:
+                - button "Lotes" [ref=f1e434] [cursor=pointer]
+                - button "Ajustar" [ref=f1e435] [cursor=pointer]
+                - button "Editar" [ref=f1e436] [cursor=pointer]
+                - button "Desactivar" [ref=f1e437] [cursor=pointer]
+                - button "Kardex" [ref=f1e438] [cursor=pointer]
+          - row [ref=f1e439]:
+            - cell "INS-001" [ref=f1e440]
+            - cell "Anestesia Isofluorano" [ref=f1e441]
+            - cell "Insumos" [ref=f1e442]
+            - cell "200 ml" [ref=f1e443]
+            - cell "40" [ref=f1e444]
+            - cell "$3,00" [ref=f1e445]
+            - cell "No" [ref=f1e446]
+            - cell "OK" [ref=f1e447]
+            - cell [ref=f1e449]:
+              - generic [ref=f1e450]:
+                - button "Lotes" [ref=f1e451] [cursor=pointer]
+                - button "Ajustar" [ref=f1e452] [cursor=pointer]
+                - button "Editar" [ref=f1e453] [cursor=pointer]
+                - button "Desactivar" [ref=f1e454] [cursor=pointer]
+                - button "Kardex" [ref=f1e455] [cursor=pointer]
+          - row [ref=f1e456]:
+            - cell "ALI-001" [ref=f1e457]
+            - cell "Croquetas Adulto 3kg" [ref=f1e458]
+            - cell "Alimentos" [ref=f1e459]
+            - cell "5 bolsa" [ref=f1e460]
+            - cell "5" [ref=f1e461]
+            - cell "$350,00" [ref=f1e462]
+            - cell "No" [ref=f1e463]
+            - cell "REPOSICIÓN" [ref=f1e464]
+            - cell [ref=f1e466]:
+              - generic [ref=f1e467]:
+                - button "Lotes" [ref=f1e468] [cursor=pointer]
+                - button "Ajustar" [ref=f1e469] [cursor=pointer]
+                - button "Editar" [ref=f1e470] [cursor=pointer]
+                - button "Desactivar" [ref=f1e471] [cursor=pointer]
+                - button "Kardex" [ref=f1e472] [cursor=pointer]
+          - row [ref=f1e473]:
+            - cell "MED-002" [ref=f1e474]
+            - cell "Ivermectina 1%" [ref=f1e475]
+            - cell "Antiparasitarios" [ref=f1e476]
+            - cell "0 ml" [ref=f1e477]
+            - cell "50" [ref=f1e478]
+            - cell "$0,80" [ref=f1e479]
+            - cell "Sí" [ref=f1e480]
+            - cell "REPOSICIÓN" [ref=f1e481]
+            - cell [ref=f1e483]:
+              - generic [ref=f1e484]:
+                - button "Lotes" [ref=f1e485] [cursor=pointer]
+                - button "Ajustar" [ref=f1e486] [cursor=pointer]
+                - button "Editar" [ref=f1e487] [cursor=pointer]
+                - button "Desactivar" [ref=f1e488] [cursor=pointer]
+                - button "Kardex" [ref=f1e489] [cursor=pointer]
+          - row [ref=f1e490]:
+            - cell "MED-004" [ref=f1e491]
+            - cell "Ketoprofeno 10%" [ref=f1e492]
+            - cell "Antiinflamatorios" [ref=f1e493]
+            - cell "0 ml" [ref=f1e494]
+            - cell "10" [ref=f1e495]
+            - cell "$18,00" [ref=f1e496]
+            - cell "Sí" [ref=f1e497]
+            - cell "REPOSICIÓN" [ref=f1e498]
+            - cell [ref=f1e500]:
+              - generic [ref=f1e501]:
+                - button "Lotes" [ref=f1e502] [cursor=pointer]
+                - button "Ajustar" [ref=f1e503] [cursor=pointer]
+                - button "Editar" [ref=f1e504] [cursor=pointer]
+                - button "Desactivar" [ref=f1e505] [cursor=pointer]
+                - button "Kardex" [ref=f1e506] [cursor=pointer]
+          - row [ref=f1e507]:
+            - cell "MED-003" [ref=f1e508]
+            - cell "Metronidazol 125mg" [ref=f1e509]
+            - cell "Antibióticos" [ref=f1e510]
+            - cell "0 tab" [ref=f1e511]
+            - cell "10" [ref=f1e512]
+            - cell "$4,20" [ref=f1e513]
+            - cell "No" [ref=f1e514]
+            - cell "REPOSICIÓN" [ref=f1e515]
+            - cell [ref=f1e517]:
+              - generic [ref=f1e518]:
+                - button "Lotes" [ref=f1e519] [cursor=pointer]
+                - button "Ajustar" [ref=f1e520] [cursor=pointer]
+                - button "Editar" [ref=f1e521] [cursor=pointer]
+                - button "Desactivar" [ref=f1e522] [cursor=pointer]
+                - button "Kardex" [ref=f1e523] [cursor=pointer]
+          - row [ref=f1e524]:
+            - cell "INS-003" [ref=f1e525]
+            - cell "Pipeta Antipulgas" [ref=f1e526]
+            - cell "Parasiticidas" [ref=f1e527]
+            - cell "0 dosis" [ref=f1e528]
+            - cell "15" [ref=f1e529]
+            - cell "$45,00" [ref=f1e530]
+            - cell "No" [ref=f1e531]
+            - cell "REPOSICIÓN" [ref=f1e532]
+            - cell [ref=f1e534]:
+              - generic [ref=f1e535]:
+                - button "Lotes" [ref=f1e536] [cursor=pointer]
+                - button "Ajustar" [ref=f1e537] [cursor=pointer]
+                - button "Editar" [ref=f1e538] [cursor=pointer]
+                - button "Desactivar" [ref=f1e539] [cursor=pointer]
+                - button "Kardex" [ref=f1e540] [cursor=pointer]
+          - row [ref=f1e541]:
+            - cell "RACE-639274914998458782" [ref=f1e542]
+            - cell "Race" [ref=f1e543]
+            - cell "Otros" [ref=f1e544]
+            - cell "1.000 un" [ref=f1e545]
+            - cell "1" [ref=f1e546]
+            - cell "$0,00" [ref=f1e547]
+            - cell "No" [ref=f1e548]
+            - cell "OK" [ref=f1e549]
+            - cell [ref=f1e551]:
+              - generic [ref=f1e552]:
+                - button "Lotes" [ref=f1e553] [cursor=pointer]
+                - button "Ajustar" [ref=f1e554] [cursor=pointer]
+                - button "Editar" [ref=f1e555] [cursor=pointer]
+                - button "Desactivar" [ref=f1e556] [cursor=pointer]
+                - button "Kardex" [ref=f1e557] [cursor=pointer]
+          - row [ref=f1e558]:
+            - cell "RACE-639274915224394545" [ref=f1e559]
+            - cell "Race" [ref=f1e560]
+            - cell "Otros" [ref=f1e561]
+            - cell "998 un" [ref=f1e562]
+            - cell "1" [ref=f1e563]
+            - cell "$0,00" [ref=f1e564]
+            - cell "No" [ref=f1e565]
+            - cell "OK" [ref=f1e566]
+            - cell [ref=f1e568]:
+              - generic [ref=f1e569]:
+                - button "Lotes" [ref=f1e570] [cursor=pointer]
+                - button "Ajustar" [ref=f1e571] [cursor=pointer]
+                - button "Editar" [ref=f1e572] [cursor=pointer]
+                - button "Desactivar" [ref=f1e573] [cursor=pointer]
+                - button "Kardex" [ref=f1e574] [cursor=pointer]
+          - row [ref=f1e575]:
+            - cell "INS-002" [ref=f1e576]
+            - cell "Suero Fisiológico 500ml" [ref=f1e577]
+            - cell "Insumos" [ref=f1e578]
+            - cell "0 sachet" [ref=f1e579]
+            - cell "10" [ref=f1e580]
+            - cell "$6,50" [ref=f1e581]
+            - cell "No" [ref=f1e582]
+            - cell "REPOSICIÓN" [ref=f1e583]
+            - cell [ref=f1e585]:
+              - generic [ref=f1e586]:
+                - button "Lotes" [ref=f1e587] [cursor=pointer]
+                - button "Ajustar" [ref=f1e588] [cursor=pointer]
+                - button "Editar" [ref=f1e589] [cursor=pointer]
+                - button "Desactivar" [ref=f1e590] [cursor=pointer]
+                - button "Kardex" [ref=f1e591] [cursor=pointer]
+          - row [ref=f1e592]:
+            - cell "OC-639274914538260983" [ref=f1e593]
+            - cell "Test OC" [ref=f1e594]
+            - cell "Otros" [ref=f1e595]
+            - cell "95 un" [ref=f1e596]
+            - cell "1" [ref=f1e597]
+            - cell "$0,00" [ref=f1e598]
+            - cell "No" [ref=f1e599]
+            - cell "OK" [ref=f1e600]
+            - cell [ref=f1e602]:
+              - generic [ref=f1e603]:
+                - button "Lotes" [ref=f1e604] [cursor=pointer]
+                - button "Ajustar" [ref=f1e605] [cursor=pointer]
+                - button "Editar" [ref=f1e606] [cursor=pointer]
+                - button "Desactivar" [ref=f1e607] [cursor=pointer]
+                - button "Kardex" [ref=f1e608] [cursor=pointer]
+          - row [ref=f1e609]:
+            - cell "VAC-001" [ref=f1e610]
+            - cell "Vacuna Antirrábica" [ref=f1e611]
+            - cell "Vacunas" [ref=f1e612]
+            - cell "50 dosis" [ref=f1e613]
+            - cell "10" [ref=f1e614]
+            - cell "$25,00" [ref=f1e615]
+            - cell "No" [ref=f1e616]
+            - cell "OK" [ref=f1e617]
+            - cell [ref=f1e619]:
+              - generic [ref=f1e620]:
+                - button "Lotes" [ref=f1e621] [cursor=pointer]
+                - button "Ajustar" [ref=f1e622] [cursor=pointer]
+                - button "Editar" [ref=f1e623] [cursor=pointer]
+                - button "Desactivar" [ref=f1e624] [cursor=pointer]
+                - button "Kardex" [ref=f1e625] [cursor=pointer]
+          - row [ref=f1e626]:
+            - cell "VAC-003" [ref=f1e627]
+            - cell "Vacuna Parvovirosis" [ref=f1e628]
+            - cell "Vacunas" [ref=f1e629]
+            - cell "0 dosis" [ref=f1e630]
+            - cell "5" [ref=f1e631]
+            - cell "$22,00" [ref=f1e632]
+            - cell "No" [ref=f1e633]
+            - cell "REPOSICIÓN" [ref=f1e634]
+            - cell [ref=f1e636]:
+              - generic [ref=f1e637]:
+                - button "Lotes" [ref=f1e638] [cursor=pointer]
+                - button "Ajustar" [ref=f1e639] [cursor=pointer]
+                - button "Editar" [ref=f1e640] [cursor=pointer]
+                - button "Desactivar" [ref=f1e641] [cursor=pointer]
+                - button "Kardex" [ref=f1e642] [cursor=pointer]
+          - row [ref=f1e643]:
+            - cell "VAC-002" [ref=f1e644]
+            - cell "Vacuna Polivalente Felina" [ref=f1e645]
+            - cell "Vacunas" [ref=f1e646]
+            - cell "0 dosis" [ref=f1e647]
+            - cell "8" [ref=f1e648]
+            - cell "$30,00" [ref=f1e649]
+            - cell "No" [ref=f1e650]
+            - cell "REPOSICIÓN" [ref=f1e651]
+            - cell [ref=f1e653]:
+              - generic [ref=f1e654]:
+                - button "Lotes" [ref=f1e655] [cursor=pointer]
+                - button "Ajustar" [ref=f1e656] [cursor=pointer]
+                - button "Editar" [ref=f1e657] [cursor=pointer]
+                - button "Desactivar" [ref=f1e658] [cursor=pointer]
+                - button "Kardex" [ref=f1e659] [cursor=pointer]
+          - row [ref=f1e660]:
+            - cell "VER-RACE-639274933245791362" [ref=f1e661]
+            - cell "Verif Race" [ref=f1e662]
+            - cell "Otros" [ref=f1e663]
+            - cell "997 un" [ref=f1e664]
+            - cell "1" [ref=f1e665]
+            - cell "$0,00" [ref=f1e666]
+            - cell "No" [ref=f1e667]
+            - cell "OK" [ref=f1e668]
+            - cell [ref=f1e670]:
+              - generic [ref=f1e671]:
+                - button "Lotes" [ref=f1e672] [cursor=pointer]
+                - button "Ajustar" [ref=f1e673] [cursor=pointer]
+                - button "Editar" [ref=f1e674] [cursor=pointer]
+                - button "Desactivar" [ref=f1e675] [cursor=pointer]
+                - button "Kardex" [ref=f1e676] [cursor=pointer]
+          - row [ref=f1e677]:
+            - cell "ZZ-INV-1791993742" [ref=f1e678]
+            - cell "ZZ Prueba Inventario" [ref=f1e679]
+            - cell "Otros" [ref=f1e680]
+            - cell "3 un" [ref=f1e681]
+            - cell "2" [ref=f1e682]
+            - cell "$10,00" [ref=f1e683]
+            - cell "No" [ref=f1e684]
+            - cell "OK" [ref=f1e685]
+            - cell [ref=f1e687]:
+              - generic [ref=f1e688]:
+                - button "Lotes" [ref=f1e689] [cursor=pointer]
+                - button "Ajustar" [ref=f1e690] [cursor=pointer]
+                - button "Editar" [ref=f1e691] [cursor=pointer]
+                - button "Desactivar" [ref=f1e692] [cursor=pointer]
+                - button "Kardex" [ref=f1e693] [cursor=pointer]
+      - paragraph [ref=f1e697]: El stock se consume por lote (FEFO, primero en vencer) al facturar o al dar de baja un uso interno. Registra un lote por compra para poder vender el artículo.

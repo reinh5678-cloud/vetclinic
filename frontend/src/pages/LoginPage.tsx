@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { name: clinicName, logoDataUrl } = useBranding();
   const navigate = useNavigate();
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('Admin123!');
@@ -36,18 +38,22 @@ export default function LoginPage() {
         className="relative w-full max-w-sm rounded-2xl border border-white/40 bg-white/95 p-8 shadow-2xl backdrop-blur"
       >
         <div className="mb-5 flex justify-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 ring-1 ring-teal-100">
-            <svg className="h-8 w-8 text-teal-700" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 21c-1.5 0-6-3.5-6-8a4 4 0 014-4c.98 0 1.57.4 2 1 .43-.6 1.02-1 2-1a4 4 0 014 4c0 4.5-4.5 8-6 8z" />
-              <circle cx="8" cy="5" r="1.8" />
-              <circle cx="16" cy="5" r="1.8" />
-              <circle cx="5" cy="9" r="1.8" />
-              <circle cx="19" cy="9" r="1.8" />
-            </svg>
+          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-teal-50 ring-1 ring-teal-100">
+            {logoDataUrl ? (
+              <img src={logoDataUrl} alt={clinicName} className="h-full w-full object-cover" />
+            ) : (
+              <svg className="h-8 w-8 text-teal-700" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 21c-1.5 0-6-3.5-6-8a4 4 0 014-4c.98 0 1.57.4 2 1 .43-.6 1.02-1 2-1a4 4 0 014 4c0 4.5-4.5 8-6 8z" />
+                <circle cx="8" cy="5" r="1.8" />
+                <circle cx="16" cy="5" r="1.8" />
+                <circle cx="5" cy="9" r="1.8" />
+                <circle cx="19" cy="9" r="1.8" />
+              </svg>
+            )}
           </div>
         </div>
 
-        <h1 className="text-center text-2xl font-bold tracking-tight text-slate-900">VetClinic</h1>
+        <h1 className="text-center text-2xl font-bold tracking-tight text-slate-900">{clinicName}</h1>
         <p className="mb-6 text-center text-sm text-slate-500">Inicia sesión para continuar</p>
 
         {error && (

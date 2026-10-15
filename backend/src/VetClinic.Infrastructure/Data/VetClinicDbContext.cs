@@ -64,6 +64,7 @@ public class VetClinicDbContext : DbContext
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<VaccineApplication> VaccineApplications => Set<VaccineApplication>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -239,6 +240,13 @@ public class VetClinicDbContext : DbContext
             e.HasOne(v => v.InventoryItem).WithMany(i => i.VaccineApplications).HasForeignKey(v => v.InventoryItemId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(v => v.PetId);
             e.HasIndex(v => v.NextDueDate);
+        });
+
+        modelBuilder.Entity<AppSetting>(e =>
+        {
+            e.Property(s => s.Section).HasMaxLength(60).IsRequired();
+            e.Property(s => s.Json).IsRequired();
+            e.HasIndex(s => s.Section).IsUnique();
         });
     }
 }

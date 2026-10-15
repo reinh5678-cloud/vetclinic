@@ -1,0 +1,129 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e14]:
+      - generic [ref=f1e15]: VetClinic
+      - generic [ref=f1e16]: Sistema de gestión
+    - navigation [ref=f1e17]:
+      - link "Dashboard" [ref=f1e18] [cursor=pointer]:
+        - /url: /
+      - link "Pacientes" [ref=f1e21] [cursor=pointer]:
+        - /url: /pacientes
+      - link "Agenda" [ref=f1e28] [cursor=pointer]:
+        - /url: /agenda
+      - link "Historia Clínica" [ref=f1e31] [cursor=pointer]:
+        - /url: /historia
+      - link "Hospitalización" [ref=f1e34] [cursor=pointer]:
+        - /url: /hospitalizacion
+      - link "Inventario" [ref=f1e37] [cursor=pointer]:
+        - /url: /inventario
+      - link "Facturación" [ref=f1e40] [cursor=pointer]:
+        - /url: /facturacion
+      - link "Configuración" [ref=f1e43] [cursor=pointer]:
+        - /url: /configuracion
+    - generic [ref=f1e48]:
+      - generic [ref=f1e49]: A
+      - generic [ref=f1e50]:
+        - paragraph [ref=f1e51]: Administrador
+        - paragraph [ref=f1e52]: Administrador
+      - button "Salir" [ref=f1e53] [cursor=pointer]
+  - main [ref=f1e56]:
+    - generic [ref=f1e57]:
+      - button "Cambiar por PIN" [ref=f1e58] [cursor=pointer]
+      - generic [ref=f1e59]: A
+    - generic [ref=f1e780]:
+      - generic [ref=f1e782]:
+        - heading "Facturación" [level=2] [ref=f1e783]
+        - paragraph [ref=f1e784]: Emisión de comprobantes y control de estados de pago.
+      - generic [ref=f1e785]:
+        - generic [ref=f1e786]:
+          - generic [ref=f1e787]: Tutor
+          - combobox [ref=f1e788]:
+            - option "Tutor…"
+            - option "Valentina Cruz" [selected]
+            - option "Lucía Fernández"
+            - option "Ana Lopez"
+            - option "Carlos Perez"
+            - option "Jorge Ramírez"
+            - option "Roberto Sánchez"
+            - option "Marcela Torres"
+        - generic [ref=f1e789]:
+          - generic [ref=f1e790]: Mascota
+          - combobox [ref=f1e791]:
+            - option "Mascota…"
+            - option "Coco" [selected]
+            - option "Mia"
+            - option "Rocky"
+        - generic [ref=f1e792]:
+          - generic [ref=f1e793]: Estado
+          - combobox [ref=f1e794]:
+            - option "Borrador"
+            - option "Emitida" [selected]
+            - option "Pagada"
+            - option "Anulada"
+        - generic [ref=f1e795]:
+          - generic [ref=f1e796]: Pago
+          - combobox [ref=f1e797]:
+            - option "Efectivo" [selected]
+            - option "Tarjeta"
+            - option "Transferencia"
+        - generic [ref=f1e798]:
+          - generic [ref=f1e799]: Artículo (opcional)
+          - combobox [ref=f1e800]:
+            - option "Sin descuento de stock"
+            - option "Amoxicilina 250mg · stock 8 tab"
+            - option "Anestesia Isofluorano · stock 200 ml"
+            - option "Croquetas Adulto 3kg · stock 5 bolsa"
+            - option "Ivermectina 1% · stock 0 ml"
+            - option "Ketoprofeno 10% · stock 0 ml"
+            - option "Metronidazol 125mg · stock 0 tab"
+            - option "Pipeta Antipulgas · stock 0 dosis"
+            - option "Race · stock 1000 un"
+            - option "Race · stock 998 un"
+            - option "Suero Fisiológico 500ml · stock 0 sachet"
+            - option "Test OC · stock 95 un"
+            - option "Vacuna Antirrábica · stock 50 dosis"
+            - option "Vacuna Parvovirosis · stock 0 dosis"
+            - option "Vacuna Polivalente Felina · stock 0 dosis"
+            - option "Verif Race · stock 997 un"
+            - option "ZZ Prueba Inventario · stock 3 un" [selected]
+        - generic [ref=f1e801]:
+          - generic [ref=f1e802]: Descripción
+          - textbox [ref=f1e803]: ZZ Prueba Inventario
+        - generic [ref=f1e804]:
+          - generic [ref=f1e805]: Cant.
+          - spinbutton [ref=f1e806]: "1"
+        - generic [ref=f1e807]:
+          - generic [ref=f1e808]: Precio
+          - spinbutton [ref=f1e809]: "10"
+        - button "Emitir factura" [active] [ref=f1e810] [cursor=pointer]
+      - paragraph [ref=f1e832]:
+        - text: Al emitir se descontará stock de
+        - strong [ref=f1e833]: ZZ Prueba Inventario
+        - text: por lote en orden FEFO.
+      - generic [ref=f1e834]: Factura emitida.
+      - table [ref=f1e812]:
+        - rowgroup [ref=f1e813]:
+          - row [ref=f1e814]:
+            - columnheader "N°" [ref=f1e815]
+            - columnheader "Fecha" [ref=f1e816]
+            - columnheader "Cliente" [ref=f1e817]
+            - columnheader "Subtotal" [ref=f1e818]
+            - columnheader "IVA" [ref=f1e819]
+            - columnheader "Total" [ref=f1e820]
+            - columnheader "Estado" [ref=f1e821]
+        - rowgroup [ref=f1e822]:
+          - row [ref=f1e835]:
+            - cell "FAC-20261014-49B496" [ref=f1e836]
+            - cell "14/10/2026" [ref=f1e837]
+            - cell "Valentina Cruz" [ref=f1e838]
+            - cell "$10" [ref=f1e839]
+            - cell "$1.6" [ref=f1e840]
+            - cell "$11.6" [ref=f1e841]
+            - cell "Emitida Emitida" [ref=f1e842]:
+              - generic [ref=f1e843]:
+                - generic [ref=f1e844]: Emitida
+                - combobox "Cambiar estado" [ref=f1e845]:
+                  - option "Emitida" [selected]
+                  - option "Pagada"
+                  - option "Anulada"
+      - paragraph [ref=f1e828]: El backend calcula subtotal, IVA y total automáticamente según la configuración vigente.

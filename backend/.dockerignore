@@ -1,0 +1,15 @@
+# Salidas de compilación
+**/bin/
+**/obj/
+
+# Configuración y secretos locales (se inyectan por variables de entorno)
+**/appsettings.local.json
+**/appsettings.*.local.json
+
+# Adjuntos subidos (se persisten en un volumen)
+**/uploads/
+
+# Pruebas y metadatos de IDE
+tests/
+.vs/
+**/*.user

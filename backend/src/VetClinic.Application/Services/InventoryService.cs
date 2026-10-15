@@ -8,6 +8,9 @@ namespace VetClinic.Application.Services;
 
 public class InventoryService : IInventoryService
 {
+    private const int MaxListSize = 300;
+    private const int MaxMovements = 200;
+
     private readonly IRepository<InventoryItem> _items;
     private readonly IRepository<ProductLot> _lots;
     private readonly IRepository<StockMovement> _movements;
@@ -30,30 +33,60 @@ public class InventoryService : IInventoryService
 
     public async Task<InventoryItemDto> CreateAsync(CreateInventoryItemRequest r, CancellationToken ct = default)
     {
-        var exists = await _items.Query().AnyAsync(i => i.Code == r.Code, ct);
+        if (r is null) throw new ArgumentException("Datos del artículo requeridos");
+
+        var name = Normalize(r.Name, "El nombre");
+        var category = Normalize(r.Category, "La categoría");
+        var code = Normalize(r.Code, "El código");
+        var unit = Normalize(r.Unit, "La unidad");
+        ValidateNumbers(r.MinStock, r.UnitPrice);
+
+        var exists = await _items.Query().AnyAsync(i => i.Code == code, ct);
         if (exists)
             throw new InvalidOperationException("Ya existe un artículo con ese código");
 
         var item = new InventoryItem
         {
-            Name = r.Name,
-            Category = r.Category,
-            Code = r.Code,
-            Unit = r.Unit,
+            Name = name,
+            Category = category,
+            Code = code,
+            Unit = unit,
             StockQuantity = 0,
             MinStock = r.MinStock,
             UnitPrice = r.UnitPrice,
-            Supplier = r.Supplier,
-            IsFractionable = r.IsFractionable
+            Supplier = r.Supplier?.Trim() ?? string.Empty,
+            IsFractionable = r.IsFractionable,
+            IsActive = true
         };
         await _items.AddAsync(item, ct);
         await _items.SaveChangesAsync(ct);
         return Map(item);
     }
 
-    public async Task<IReadOnlyList<InventoryItemDto>> ListAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<InventoryItemDto>> ListAsync(InventoryQuery? query = null, CancellationToken ct = default)
     {
-        var items = await _items.Query().OrderBy(i => i.Name).ToListAsync(ct);
+        query ??= new InventoryQuery();
+        var q = _items.Query().AsNoTracking();
+
+        if (!query.IncludeInactive)
+            q = q.Where(i => i.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var term = query.Search.Trim().ToLower();
+            q = q.Where(i => i.Name.ToLower().Contains(term) || i.Code.ToLower().Contains(term));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Category))
+        {
+            var category = query.Category.Trim();
+            q = q.Where(i => i.Category == category);
+        }
+
+        if (query.LowOnly)
+            q = q.Where(i => i.StockQuantity <= i.MinStock);
+
+        var items = await q.OrderBy(i => i.Name).Take(MaxListSize).ToListAsync(ct);
         return items.Select(Map).ToList();
     }
 
@@ -61,6 +94,49 @@ public class InventoryService : IInventoryService
     {
         var item = await _items.GetByIdAsync(itemId, ct);
         return item is null ? null : Map(item);
+    }
+
+    public async Task<InventoryItemDto?> UpdateAsync(int itemId, UpdateInventoryItemRequest r, CancellationToken ct = default)
+    {
+        if (r is null) throw new ArgumentException("Datos del artículo requeridos");
+
+        var item = await _items.GetByIdAsync(itemId, ct);
+        if (item is null) return null;
+
+        var name = Normalize(r.Name, "El nombre");
+        var category = Normalize(r.Category, "La categoría");
+        var code = Normalize(r.Code, "El código");
+        var unit = Normalize(r.Unit, "La unidad");
+        ValidateNumbers(r.MinStock, r.UnitPrice);
+
+        var duplicate = await _items.Query().AnyAsync(i => i.Code == code && i.Id != itemId, ct);
+        if (duplicate)
+            throw new InvalidOperationException("Ya existe otro artículo con ese código");
+
+        item.Name = name;
+        item.Category = category;
+        item.Code = code;
+        item.Unit = unit;
+        item.MinStock = r.MinStock;
+        item.UnitPrice = r.UnitPrice;
+        item.Supplier = r.Supplier?.Trim() ?? string.Empty;
+        item.IsFractionable = r.IsFractionable;
+        _items.Update(item);
+        await _items.SaveChangesAsync(ct);
+        return Map(item);
+    }
+
+    public async Task<InventoryItemDto?> SetStatusAsync(int itemId, UpdateItemStatusRequest r, CancellationToken ct = default)
+    {
+        if (r is null) throw new ArgumentException("Datos de estado requeridos");
+
+        var item = await _items.GetByIdAsync(itemId, ct);
+        if (item is null) return null;
+
+        item.IsActive = r.IsActive;
+        _items.Update(item);
+        await _items.SaveChangesAsync(ct);
+        return Map(item);
     }
 
     public async Task<InventoryItemDto?> UpdateStockAsync(int itemId, UpdateStockRequest r, CancellationToken ct = default)
@@ -71,12 +147,14 @@ public class InventoryService : IInventoryService
         if (r.Quantity == 0)
             throw new ArgumentException("La cantidad del ajuste debe ser distinta de cero");
 
+        var description = string.IsNullOrWhiteSpace(r.Description) ? "Ajuste manual" : r.Description.Trim();
+
         await using var tx = await _uow.BeginTransactionAsync(ct);
         try
         {
             if (r.Quantity < 0)
             {
-                await ConsumeStockAsync(item, Math.Abs(r.Quantity), r.Description, ct);
+                await Fefo.ConsumeAsync(item, _lots, _movements, Math.Abs(r.Quantity), StockMovementType.Ajuste, description, _currentUser.UserId, ct);
             }
             else
             {
@@ -94,13 +172,13 @@ public class InventoryService : IInventoryService
                     ProductLot = lot,
                     Type = StockMovementType.Ajuste,
                     Quantity = r.Quantity,
-                    Description = r.Description,
+                    Description = description,
                     PerformedById = _currentUser.UserId
                 }, ct);
                 item.StockQuantity += r.Quantity;
-                _items.Update(item);
             }
 
+            _items.Update(item);
             await _items.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }
@@ -113,58 +191,19 @@ public class InventoryService : IInventoryService
         return Map(item);
     }
 
-    private async Task ConsumeStockAsync(InventoryItem item, decimal quantity, string description, CancellationToken ct)
-    {
-        if (item.StockQuantity < quantity)
-            throw new InvalidOperationException($"Stock insuficiente para la salida solicitada (disponible: {item.StockQuantity:F3}, solicitado: {quantity:F3})");
-
-        var lots = await _lots.Query()
-            .Where(l => l.InventoryItemId == item.Id && l.IsActive && l.AvailableQuantity > 0)
-            .ToListAsync(ct);
-        lots = lots
-            .OrderByDescending(l => l.ExpirationDate.HasValue)
-            .ThenBy(l => l.ExpirationDate)
-            .ThenBy(l => l.Id)
-            .ToList();
-
-        var remaining = quantity;
-        foreach (var lot in lots)
-        {
-            if (remaining <= 0) break;
-
-            var take = Math.Min(lot.AvailableQuantity, remaining);
-            lot.AvailableQuantity -= take;
-            remaining -= take;
-            _lots.Update(lot);
-            await _movements.AddAsync(new StockMovement
-            {
-                InventoryItemId = item.Id,
-                ProductLotId = lot.Id,
-                Type = StockMovementType.Ajuste,
-                Quantity = take,
-                Description = description,
-                PerformedById = _currentUser.UserId
-            }, ct);
-        }
-
-        if (remaining > 0)
-            throw new InvalidOperationException($"Stock insuficiente para la salida solicitada (faltan {remaining:F3} disponibles en lotes activos)");
-
-        item.StockQuantity -= quantity;
-        _items.Update(item);
-    }
-
     public async Task<ProductLotDto?> AddLotAsync(int itemId, AddLotRequest r, CancellationToken ct = default)
     {
         var item = await _items.GetByIdAsync(itemId, ct);
         if (item is null) return null;
+
+        var lotNumber = Normalize(r.LotNumber, "El número de lote");
         if (r.Quantity <= 0)
-            throw new InvalidOperationException("La cantidad del lote debe ser mayor a cero");
+            throw new ArgumentException("La cantidad del lote debe ser mayor a cero");
 
         var lot = new ProductLot
         {
             InventoryItemId = itemId,
-            LotNumber = r.LotNumber,
+            LotNumber = lotNumber,
             ExpirationDate = r.ExpirationDate,
             AvailableQuantity = r.Quantity
         };
@@ -179,7 +218,7 @@ public class InventoryService : IInventoryService
                 ProductLot = lot,
                 Type = StockMovementType.EntradaCompra,
                 Quantity = r.Quantity,
-                Description = r.Description,
+                Description = string.IsNullOrWhiteSpace(r.Description) ? "Entrada por compra" : r.Description.Trim(),
                 PerformedById = _currentUser.UserId
             }, ct);
 
@@ -197,12 +236,13 @@ public class InventoryService : IInventoryService
         return Map(lot);
     }
 
-    public async Task<IReadOnlyList<ProductLotDto>> ListLotsAsync(int itemId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ProductLotDto>> ListLotsAsync(int itemId, bool includeInactive = false, CancellationToken ct = default)
     {
-        var lots = await _lots.Query()
-            .Where(l => l.InventoryItemId == itemId && l.IsActive)
-            .OrderBy(l => l.ExpirationDate)
-            .ToListAsync(ct);
+        var q = _lots.Query().AsNoTracking().Where(l => l.InventoryItemId == itemId);
+        if (!includeInactive)
+            q = q.Where(l => l.IsActive);
+
+        var lots = await q.OrderBy(l => l.ExpirationDate).ThenBy(l => l.Id).ToListAsync(ct);
         return lots.Select(Map).ToList();
     }
 
@@ -218,27 +258,23 @@ public class InventoryService : IInventoryService
         try
         {
             lot.IsActive = false;
-            lot.AvailableQuantity = 0;
             _lots.Update(lot);
 
-            if (released > 0)
+            if (item is not null)
             {
-                if (item is not null)
-                {
-                    item.StockQuantity = Math.Max(0, item.StockQuantity - released);
-                    _items.Update(item);
-                }
-
-                await _movements.AddAsync(new StockMovement
-                {
-                    InventoryItemId = lot.InventoryItemId,
-                    ProductLotId = lot.Id,
-                    Type = StockMovementType.Ajuste,
-                    Quantity = -released,
-                    Description = $"Baja de lote {lot.LotNumber}: {released:F3} unidades liberadas del stock",
-                    PerformedById = _currentUser.UserId
-                }, ct);
+                item.StockQuantity = Math.Max(0, item.StockQuantity - released);
+                _items.Update(item);
             }
+
+            await _movements.AddAsync(new StockMovement
+            {
+                InventoryItemId = lot.InventoryItemId,
+                ProductLotId = lot.Id,
+                Type = StockMovementType.Ajuste,
+                Quantity = -released,
+                Description = $"Baja de lote {lot.LotNumber}: {released:F3} unidades retiradas del stock",
+                PerformedById = _currentUser.UserId
+            }, ct);
 
             await _lots.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -252,11 +288,116 @@ public class InventoryService : IInventoryService
         return true;
     }
 
+    public async Task<bool> ReactivateLotAsync(int lotId, CancellationToken ct = default)
+    {
+        var lot = await _lots.GetByIdAsync(lotId, ct);
+        if (lot is null || lot.IsActive) return false;
+
+        var item = await _items.GetByIdAsync(lot.InventoryItemId, ct);
+        var restored = lot.AvailableQuantity;
+
+        await using var tx = await _uow.BeginTransactionAsync(ct);
+        try
+        {
+            lot.IsActive = true;
+            _lots.Update(lot);
+
+            if (item is not null)
+            {
+                item.StockQuantity += restored;
+                _items.Update(item);
+            }
+
+            await _movements.AddAsync(new StockMovement
+            {
+                InventoryItemId = lot.InventoryItemId,
+                ProductLotId = lot.Id,
+                Type = StockMovementType.Ajuste,
+                Quantity = restored,
+                Description = $"Reactivación de lote {lot.LotNumber}: {restored:F3} unidades devueltas al stock",
+                PerformedById = _currentUser.UserId
+            }, ct);
+
+            await _lots.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+
+        return true;
+    }
+
+    public async Task<IReadOnlyList<StockMovementDto>> ListMovementsAsync(int itemId, CancellationToken ct = default)
+    {
+        var movements = await _movements.Query()
+            .AsNoTracking()
+            .Include(m => m.ProductLot)
+            .Include(m => m.PerformedBy)
+            .Where(m => m.InventoryItemId == itemId)
+            .OrderByDescending(m => m.MovementDate)
+            .ThenByDescending(m => m.Id)
+            .Take(MaxMovements)
+            .ToListAsync(ct);
+
+        return movements.Select(m => new StockMovementDto(
+            m.Id,
+            m.Type.ToString(),
+            m.Quantity,
+            m.Description,
+            m.MovementDate,
+            m.ProductLot?.LotNumber,
+            m.PerformedBy?.FullName)).ToList();
+    }
+
+    public async Task<IReadOnlyList<ExpiringLotDto>> ListExpiringLotsAsync(int days = 30, CancellationToken ct = default)
+    {
+        if (days < 0) days = 0;
+        var today = DateTime.UtcNow.Date;
+        var limit = today.AddDays(days);
+
+        var lots = await _lots.Query()
+            .AsNoTracking()
+            .Include(l => l.InventoryItem)
+            .Where(l => l.IsActive && l.AvailableQuantity > 0 && l.ExpirationDate != null && l.ExpirationDate.Value.Date <= limit)
+            .OrderBy(l => l.ExpirationDate)
+            .ThenBy(l => l.Id)
+            .ToListAsync(ct);
+
+        return lots.Select(l => new ExpiringLotDto(
+            l.Id,
+            l.InventoryItemId,
+            l.InventoryItem?.Name ?? "—",
+            l.InventoryItem?.Code ?? "—",
+            l.LotNumber,
+            l.ExpirationDate,
+            l.AvailableQuantity,
+            l.ExpirationDate!.Value.Date < today)).ToList();
+    }
+
+    private static string Normalize(string? value, string label)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException($"{label} es obligatorio");
+        return value.Trim();
+    }
+
+    private static void ValidateNumbers(decimal minStock, decimal unitPrice)
+    {
+        if (minStock < 0)
+            throw new ArgumentException("El stock mínimo no puede ser negativo");
+        if (unitPrice < 0)
+            throw new ArgumentException("El precio unitario no puede ser negativo");
+    }
+
     private static InventoryItemDto Map(InventoryItem i) => new(
         i.Id, i.Name, i.Category, i.Code, i.Unit, i.StockQuantity, i.MinStock, i.UnitPrice,
-        i.Supplier, i.StockQuantity <= i.MinStock, i.IsFractionable);
+        i.Supplier, i.StockQuantity <= i.MinStock, i.IsFractionable, i.IsActive);
 
     private static ProductLotDto Map(ProductLot l) => new(
         l.Id, l.InventoryItemId, l.LotNumber, l.ExpirationDate, l.AvailableQuantity,
-        l.ExpirationDate.HasValue && l.ExpirationDate.Value.Date <= DateTime.UtcNow.AddDays(30) && l.AvailableQuantity > 0);
+        l.ExpirationDate.HasValue && l.ExpirationDate.Value.Date <= DateTime.UtcNow.AddDays(30) && l.AvailableQuantity > 0,
+        l.IsActive);
 }

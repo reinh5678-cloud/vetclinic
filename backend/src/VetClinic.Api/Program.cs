@@ -74,7 +74,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<VetClinic.Application.Interfaces.ICurrentUser, VetClinic.Api.Services.CurrentUser>();
-builder.Services.AddSingleton<VetClinic.Api.Services.LocalSettingsWriter>();
+builder.Services.AddHostedService<VetClinic.Api.Services.ReminderGeneratorHostedService>();
 
 var app = builder.Build();
 

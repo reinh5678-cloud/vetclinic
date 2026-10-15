@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using VetClinic.Application.DTOs;
 using VetClinic.Application.Interfaces;
 using VetClinic.Domain.Entities;
@@ -9,10 +8,6 @@ namespace VetClinic.Application.Services;
 
 public class InvoiceService : IInvoiceService
 {
-    private const decimal DefaultTaxRate = 0.16m;
-
-    private static readonly string[] AllowedPaymentMethods = { "Efectivo", "Tarjeta", "Transferencia" };
-
     private static readonly Dictionary<InvoiceStatus, InvoiceStatus[]> AllowedTransitions = new()
     {
         [InvoiceStatus.Borrador] = new[] { InvoiceStatus.Emitida, InvoiceStatus.Anulada },
@@ -28,7 +23,7 @@ public class InvoiceService : IInvoiceService
     private readonly IRepository<Tutor> _tutors;
     private readonly IRepository<Pet> _pets;
     private readonly IUnitOfWork _uow;
-    private readonly IConfiguration _configuration;
+    private readonly ISettingsService _settings;
     private readonly ICurrentUser _currentUser;
 
     public InvoiceService(
@@ -39,7 +34,7 @@ public class InvoiceService : IInvoiceService
         IRepository<Tutor> tutors,
         IRepository<Pet> pets,
         IUnitOfWork uow,
-        IConfiguration configuration,
+        ISettingsService settings,
         ICurrentUser currentUser)
     {
         _invoices = invoices;
@@ -49,24 +44,21 @@ public class InvoiceService : IInvoiceService
         _tutors = tutors;
         _pets = pets;
         _uow = uow;
-        _configuration = configuration;
+        _settings = settings;
         _currentUser = currentUser;
     }
 
-    private decimal TaxRate =>
-        decimal.TryParse(_configuration["Billing:TaxRate"], System.Globalization.NumberStyles.Number,
-            System.Globalization.CultureInfo.InvariantCulture, out var rate) && rate >= 0
-            ? rate
-            : DefaultTaxRate;
-
     public async Task<InvoiceDto> CreateAsync(CreateInvoiceRequest r, CancellationToken ct = default)
     {
+        var billing = await _settings.GetBillingAsync(ct);
+
         if (r.Lines is null || r.Lines.Count == 0)
             throw new ArgumentException("La factura debe tener al menos una línea");
         if (!Enum.IsDefined(r.Status))
             throw new ArgumentException("Estado de factura inválido");
-        if (string.IsNullOrWhiteSpace(r.PaymentMethod) || !AllowedPaymentMethods.Contains(r.PaymentMethod))
-            throw new ArgumentException("Medio de pago inválido. Valores permitidos: Efectivo, Tarjeta, Transferencia");
+        if (string.IsNullOrWhiteSpace(r.PaymentMethod) ||
+            !billing.PaymentMethods.Contains(r.PaymentMethod, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException($"Medio de pago inválido. Valores permitidos: {string.Join(", ", billing.PaymentMethods)}");
         if (!r.TutorId.HasValue && !r.PetId.HasValue)
             throw new ArgumentException("La factura debe indicar el tutor o la mascota del cliente");
         if (r.TutorId.HasValue && await _tutors.GetByIdAsync(r.TutorId.Value, ct) is null)
@@ -80,7 +72,7 @@ public class InvoiceService : IInvoiceService
             PetId = r.PetId,
             Status = r.Status,
             PaymentMethod = r.PaymentMethod,
-            InvoiceNumber = GenerateNumber(),
+            InvoiceNumber = GenerateNumber(billing.InvoicePrefix),
             CreatedById = _currentUser.UserId
         };
 
@@ -107,7 +99,7 @@ public class InvoiceService : IInvoiceService
             }
 
             invoice.Subtotal = invoice.Lines.Sum(l => l.Total);
-            invoice.Taxes = Math.Round(invoice.Subtotal * TaxRate, 2);
+            invoice.Taxes = Math.Round(invoice.Subtotal * billing.TaxRate, 2);
             invoice.Total = invoice.Subtotal + invoice.Taxes;
 
             await _invoices.AddAsync(invoice, ct);
@@ -132,42 +124,9 @@ public class InvoiceService : IInvoiceService
         if (!item.IsFractionable && quantity != Math.Truncate(quantity))
             throw new ArgumentException($"«{item.Name}» no admite cantidades fraccionadas (unidad entera)");
 
-        var required = quantity;
-        if (item.StockQuantity < required)
-            throw new InvalidOperationException($"Stock insuficiente para «{item.Name}» (disponible: {item.StockQuantity:F3}, requerido: {required:F3})");
+        await Fefo.ConsumeAsync(item, _lots, _movements, quantity, StockMovementType.SalidaVenta,
+            $"Venta factura {invoiceNumber}", _currentUser.UserId, ct);
 
-        var lots = await _lots.Query()
-            .Where(l => l.InventoryItemId == itemId && l.IsActive && l.AvailableQuantity > 0)
-            .ToListAsync(ct);
-        lots = lots
-            .OrderByDescending(l => l.ExpirationDate.HasValue)
-            .ThenBy(l => l.ExpirationDate)
-            .ThenBy(l => l.Id)
-            .ToList();
-
-        var remaining = required;
-        foreach (var lot in lots)
-        {
-            if (remaining <= 0) break;
-            var take = Math.Min(lot.AvailableQuantity, remaining);
-            lot.AvailableQuantity -= take;
-            remaining -= take;
-            _lots.Update(lot);
-            await _movements.AddAsync(new StockMovement
-            {
-                InventoryItemId = itemId,
-                ProductLotId = lot.Id,
-                Type = StockMovementType.SalidaVenta,
-                Quantity = take,
-                Description = $"Venta factura {invoiceNumber} (lote {lot.LotNumber})",
-                PerformedById = _currentUser.UserId
-            }, ct);
-        }
-
-        if (remaining > 0)
-            throw new InvalidOperationException($"Stock insuficiente para «{item.Name}» (faltan {remaining:F3} en lotes activos)");
-
-        item.StockQuantity -= required;
         _inventory.Update(item);
     }
 
@@ -215,8 +174,11 @@ public class InvoiceService : IInvoiceService
         return loaded is null ? null : Map(loaded);
     }
 
-    private static string GenerateNumber() =>
-        $"FAC-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+    private static string GenerateNumber(string prefix)
+    {
+        var clean = string.IsNullOrWhiteSpace(prefix) ? "FAC" : prefix.Trim();
+        return $"{clean}-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+    }
 
     private static InvoiceLineDto Map(InvoiceLine l) => new(
         l.Id, l.Description, l.Quantity, l.UnitPrice, l.Total, l.InventoryItemId);

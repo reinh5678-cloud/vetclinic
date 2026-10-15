@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { listItems, type InventoryItem } from '../../api/inventory';
 import {
   addVaccine,
   listPets,
@@ -8,8 +8,6 @@ import {
   type Pet,
   type UpcomingVaccine,
 } from '../../api/patients';
-
-interface InventoryItem { id: number; name: string; category: string; }
 
 const DAY_OPTIONS = [7, 30, 90, 365];
 
@@ -37,7 +35,7 @@ export default function VaccinesPanel() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     listPets({ active: true }).then(setPets).catch(console.error);
-    api<InventoryItem[]>('/inventory')
+    listItems()
       .then((all) => setItems(all.filter((i) => i.category.toLowerCase() === 'vacunas')))
       .catch(console.error);
   }, []);

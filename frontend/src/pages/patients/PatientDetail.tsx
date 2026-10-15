@@ -1,20 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { listVaccines, type Pet, type VaccineApplication } from '../../api/patients';
+import { listRecordsByPet, type MedicalRecord } from '../../api/medicalRecords';
 
 interface Appointment {
   id: number;
   startTime: string;
   status: string;
   reason: string;
-  vetName: string | null;
-}
-
-interface MedicalRecord {
-  id: number;
-  recordDate: string;
-  symptoms: string;
-  diagnosis: string;
   vetName: string | null;
 }
 
@@ -38,7 +31,7 @@ export default function PatientDetail({ pet }: { pet: Pet }) {
 
   useEffect(() => {
     listVaccines(pet.id).then(setVaccines).catch(console.error);
-    api<MedicalRecord[]>(`/medical-records/pet/${pet.id}`).then(setRecords).catch(console.error);
+    listRecordsByPet(pet.id).then(setRecords).catch(console.error);
     api<Appointment[]>(`/appointments/pet/${pet.id}`).then(setAppointments).catch(console.error);
   }, [pet.id]);
 

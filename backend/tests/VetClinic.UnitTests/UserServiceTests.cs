@@ -14,7 +14,8 @@ public class UserServiceTests
     private static UserService CreateService(
         IEnumerable<User>? users = null,
         IEnumerable<Role>? roles = null,
-        int? currentUserId = null)
+        int? currentUserId = null,
+        ISettingsService? settings = null)
     {
         var usersRepo = new Mock<IRepository<User>>();
         usersRepo.Setup(r => r.Query()).Returns((users ?? Array.Empty<User>()).ToList().BuildMockDbSet().Object);
@@ -30,7 +31,7 @@ public class UserServiceTests
         var currentUser = new Mock<ICurrentUser>();
         currentUser.SetupGet(c => c.UserId).Returns(currentUserId);
 
-        return new UserService(usersRepo.Object, rolesRepo.Object, currentUser.Object);
+        return new UserService(usersRepo.Object, rolesRepo.Object, settings ?? new FakeSettingsService(), currentUser.Object);
     }
 
     private static User ExistingUser(int id, string username, int roleId, string? pin = null) => new()

@@ -16,11 +16,13 @@ public class AuthService : IAuthService
 {
     private readonly IRepository<User> _users;
     private readonly IConfiguration _configuration;
+    private readonly ISettingsService _settings;
 
-    public AuthService(IRepository<User> users, IConfiguration configuration)
+    public AuthService(IRepository<User> users, IConfiguration configuration, ISettingsService settings)
     {
         _users = users;
         _configuration = configuration;
+        _settings = settings;
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken ct = default)
@@ -63,7 +65,7 @@ public class AuthService : IAuthService
         return users.Select(u => new UserSummaryDto(u.Id, u.FullName, u.Role?.Name ?? string.Empty)).ToList();
     }
 
-    private Task<AuthResponse> BuildResponseAsync(User? user, CancellationToken ct)
+    private async Task<AuthResponse> BuildResponseAsync(User? user, CancellationToken ct)
     {
         if (user is null || user.Role is null)
             throw new UnauthorizedAccessException("PIN inválido");
@@ -71,10 +73,11 @@ public class AuthService : IAuthService
         if (!user.IsActive)
             throw new UnauthorizedAccessException("Usuario desactivado");
 
+        var security = await _settings.GetSecurityAsync(ct);
         var permissions = GetPermissions(user.Role);
-        var token = GenerateToken(user, permissions);
+        var token = GenerateToken(user, permissions, security.SessionHours);
         var dto = new UserDto(user.Id, user.Username, user.FullName, user.Email, user.Role.Name);
-        return Task.FromResult(new AuthResponse(token, dto, permissions));
+        return new AuthResponse(token, dto, permissions);
     }
 
     private static string[] GetPermissions(Role? role)
@@ -92,7 +95,7 @@ public class AuthService : IAuthService
         }
     }
 
-private string GenerateToken(User user, string[] permissions)
+private string GenerateToken(User user, string[] permissions, int expirationHours)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -110,7 +113,7 @@ private string GenerateToken(User user, string[] permissions)
             claims.Add(new Claim(Permissions.ClaimType, permission));
         }
 
-        if (!double.TryParse(_configuration["Jwt:ExpirationHours"], out var expirationHours) || expirationHours <= 0)
+        if (expirationHours <= 0)
             expirationHours = 12;
 
         var token = new JwtSecurityToken(

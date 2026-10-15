@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<IVaccineService, VaccineService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IRoleService, RoleService>();
+        services.AddScoped<ISettingsService, SettingsService>();
         return services;
     }
 }

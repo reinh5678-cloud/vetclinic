@@ -1,0 +1,71 @@
+- generic [ref=f2e3]:
+  - complementary [ref=f2e4]:
+    - generic [ref=f2e14]:
+      - generic [ref=f2e15]: VetClinic
+      - generic [ref=f2e16]: Sistema de gestión
+    - navigation [ref=f2e17]:
+      - link "Dashboard" [ref=f2e18] [cursor=pointer]:
+        - /url: /
+      - link "Pacientes" [ref=f2e21] [cursor=pointer]:
+        - /url: /pacientes
+      - link "Agenda" [ref=f2e28] [cursor=pointer]:
+        - /url: /agenda
+      - link "Historia Clínica" [ref=f2e31] [cursor=pointer]:
+        - /url: /historia
+      - link "Hospitalización" [ref=f2e34] [cursor=pointer]:
+        - /url: /hospitalizacion
+      - link "Inventario" [ref=f2e37] [cursor=pointer]:
+        - /url: /inventario
+      - link "Facturación" [ref=f2e40] [cursor=pointer]:
+        - /url: /facturacion
+      - link "Configuración" [ref=f2e43] [cursor=pointer]:
+        - /url: /configuracion
+    - generic [ref=f2e48]:
+      - generic [ref=f2e49]: A
+      - generic [ref=f2e50]:
+        - paragraph [ref=f2e51]: Administrador
+        - paragraph [ref=f2e52]: Administrador
+      - button "Salir" [ref=f2e53] [cursor=pointer]
+  - main [ref=f2e56]:
+    - generic [ref=f2e57]:
+      - button "Cambiar por PIN" [ref=f2e58] [cursor=pointer]
+      - generic [ref=f2e59]: A
+    - generic [ref=f2e62]:
+      - generic [ref=f2e63]:
+        - generic [ref=f2e64]:
+          - heading "Inventario y Farmacia" [level=2] [ref=f2e65]
+          - paragraph [ref=f2e66]: Control de stock por lote, reposición y vencimientos.
+        - button "+ Nuevo artículo" [ref=f2e67] [cursor=pointer]
+      - generic [ref=f2e68]:
+        - button "Artículos" [ref=f2e69] [cursor=pointer]
+        - button "Lotes por vencer" [ref=f2e70] [cursor=pointer]
+      - generic [ref=f2e71]:
+        - generic [ref=f2e72]:
+          - generic [ref=f2e73]: Buscar
+          - textbox "Nombre o código…" [ref=f2e74]
+        - generic [ref=f2e75]:
+          - generic [ref=f2e76]: Categoría
+          - combobox [ref=f2e77]:
+            - option "Todas" [selected]
+        - generic [ref=f2e78]:
+          - checkbox "Solo bajo stock" [ref=f2e79]
+          - text: Solo bajo stock
+        - generic [ref=f2e80]:
+          - checkbox "Incluir inactivos" [ref=f2e81]
+          - text: Incluir inactivos
+      - table [ref=f2e83]:
+        - rowgroup [ref=f2e84]:
+          - row [ref=f2e85]:
+            - columnheader "Código" [ref=f2e86]
+            - columnheader "Artículo" [ref=f2e87]
+            - columnheader "Categoría" [ref=f2e88]
+            - columnheader "Stock" [ref=f2e89]
+            - columnheader "Stock mín." [ref=f2e90]
+            - columnheader "Precio" [ref=f2e91]
+            - columnheader "Fracc." [ref=f2e92]
+            - columnheader "Estado" [ref=f2e93]
+            - columnheader "Acciones" [ref=f2e94]
+        - rowgroup [ref=f2e95]:
+          - row [ref=f2e96]:
+            - cell "Cargando…" [ref=f2e97]
+      - paragraph [ref=f2e101]: El stock se consume por lote (FEFO, primero en vencer) al facturar o al dar de baja un uso interno. Registra un lote por compra para poder vender el artículo.

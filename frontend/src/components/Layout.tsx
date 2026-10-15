@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type JSX } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
 
 /* ── SVG icon components ─────────────────────────────────────────── */
 const icons: Record<string, JSX.Element> = {
@@ -53,6 +54,7 @@ const icons: Record<string, JSX.Element> = {
 
 export default function Layout() {
   const { user, logout, can, loginByPin } = useAuth();
+  const { name: clinicName, logoDataUrl } = useBranding();
   const navigate = useNavigate();
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
@@ -100,17 +102,21 @@ export default function Layout() {
         {/* Logo area */}
         <div className="px-6 pt-7 pb-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-800/70 ring-1 ring-teal-700/60">
-              <svg className="h-6 w-6 text-teal-300" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 21c-1.5 0-6-3.5-6-8a4 4 0 014-4c.98 0 1.57.4 2 1 .43-.6 1.02-1 2-1a4 4 0 014 4c0 4.5-4.5 8-6 8z" />
-                <circle cx="8" cy="5" r="1.8" />
-                <circle cx="16" cy="5" r="1.8" />
-                <circle cx="5" cy="9" r="1.8" />
-                <circle cx="19" cy="9" r="1.8" />
-              </svg>
+            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-teal-800/70 ring-1 ring-teal-700/60">
+              {logoDataUrl ? (
+                <img src={logoDataUrl} alt={clinicName} className="h-full w-full object-cover" />
+              ) : (
+                <svg className="h-6 w-6 text-teal-300" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 21c-1.5 0-6-3.5-6-8a4 4 0 014-4c.98 0 1.57.4 2 1 .43-.6 1.02-1 2-1a4 4 0 014 4c0 4.5-4.5 8-6 8z" />
+                  <circle cx="8" cy="5" r="1.8" />
+                  <circle cx="16" cy="5" r="1.8" />
+                  <circle cx="5" cy="9" r="1.8" />
+                  <circle cx="19" cy="9" r="1.8" />
+                </svg>
+              )}
             </span>
             <div>
-              <span className="block text-lg font-bold leading-tight tracking-tight">VetClinic</span>
+              <span className="block text-lg font-bold leading-tight tracking-tight">{clinicName}</span>
               <span className="block text-xs text-teal-300/70">Sistema de gestión</span>
             </div>
           </div>

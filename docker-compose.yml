@@ -4,19 +4,40 @@ services:
     container_name: vetclinic-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: vetclinic
-      POSTGRES_USER: vetapp
+      POSTGRES_DB: ${POSTGRES_DB:-vetclinic}
+      POSTGRES_USER: ${POSTGRES_USER:-vetapp}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vetpass123}
     ports:
       - "5432:5432"
     volumes:
       - vetclinic_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vetapp -d vetclinic"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vetapp} -d ${POSTGRES_DB:-vetclinic}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vetclinic-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-vetclinic};Username=${POSTGRES_USER:-vetapp};Password=${POSTGRES_PASSWORD:-vetpass123}"
+      Jwt__Key: ${JWT_KEY:-SuperSecretKey_VetClinic_2026_CambiarEnProduccion_MustBeAtLeast32Chars}
+    ports:
+      - "8080:8080"
+    volumes:
+      - vetclinic_uploads:/app/uploads
+
 volumes:
   vetclinic_pgdata:
+    driver: local
+  vetclinic_uploads:
     driver: local

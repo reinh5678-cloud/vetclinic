@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api } from '../api/client';
+import { listItems, type InventoryItem } from '../api/inventory';
 
 interface Invoice {
   id: number; invoiceNumber: string; issueDate: string; status: string; subtotal: number; taxes: number; total: number; paymentMethod: string; tutorName: string | null;
@@ -32,8 +33,10 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [tutorId, setTutorId] = useState<number | ''>('');
   const [petId, setPetId] = useState<number | ''>('');
+  const [inventoryItemId, setInventoryItemId] = useState<number | ''>('');
   const [status, setStatus] = useState('Emitida');
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
   const [description, setDescription] = useState('Consulta general');
@@ -47,7 +50,27 @@ export default function InvoicesPage() {
     load();
     api<Tutor[]>('/patients/tutors').then(setTutors).catch(console.error);
     api<Pet[]>('/patients/pets').then(setPets).catch(console.error);
+    listItems({ includeInactive: false }).then(setInventoryItems).catch(console.error);
   }, []);
+
+  const selectedItem = useMemo(
+    () => inventoryItems.find((i) => i.id === inventoryItemId) ?? null,
+    [inventoryItems, inventoryItemId],
+  );
+
+  const pickInventoryItem = (value: string) => {
+    if (value === '') {
+      setInventoryItemId('');
+      return;
+    }
+    const id = Number(value);
+    const item = inventoryItems.find((i) => i.id === id);
+    setInventoryItemId(id);
+    if (item) {
+      setDescription(item.name);
+      setUnitPrice(item.unitPrice);
+    }
+  };
 
   const create = async (e: FormEvent) => {
     e.preventDefault();
@@ -62,7 +85,12 @@ export default function InvoicesPage() {
           petId: petId === '' ? null : Number(petId),
           status,
           paymentMethod,
-          lines: [{ description, quantity, unitPrice, inventoryItemId: null }],
+          lines: [{
+            description,
+            quantity,
+            unitPrice,
+            inventoryItemId: inventoryItemId === '' ? null : inventoryItemId,
+          }],
         }),
       });
       setMsg('Factura emitida.');
@@ -123,6 +151,15 @@ export default function InvoicesPage() {
             {PAYMENTS.map((p) => <option key={p}>{p}</option>)}
           </select>
         </div>
+        <div className="field min-w-48">
+          <label className="label">Artículo (opcional)</label>
+          <select value={inventoryItemId} onChange={(e) => pickInventoryItem(e.target.value)} className="select">
+            <option value="">Sin descuento de stock</option>
+            {inventoryItems.map((i) => (
+              <option key={i.id} value={i.id}>{i.name} · stock {i.stockQuantity} {i.unit}</option>
+            ))}
+          </select>
+        </div>
         <div className="field min-w-52 flex-1">
           <label className="label">Descripción</label>
           <input value={description} onChange={(e) => setDescription(e.target.value)} className="input" />
@@ -137,6 +174,18 @@ export default function InvoicesPage() {
         </div>
         <button type="submit" className="btn btn-primary">Emitir factura</button>
       </form>
+
+      {selectedItem && (
+        <div className="alert alert-info mt-3">
+          <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p>
+            Al emitir se descontará stock de <strong>{selectedItem.name}</strong> por lote en orden FEFO.
+            {selectedItem.stockQuantity < quantity && <span className="ml-1 text-rose-600">Stock insuficiente: disponible {selectedItem.stockQuantity} {selectedItem.unit}.</span>}
+          </p>
+        </div>
+      )}
 
       {err && <div className="alert alert-error">{err}</div>}
       {msg && <div className="alert alert-success">{msg}</div>}

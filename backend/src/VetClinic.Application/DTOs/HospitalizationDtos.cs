@@ -8,11 +8,13 @@ public record AddEvolutionRequest(decimal? Temperature, int? HeartRate, int? Res
 
 public record AddMedicationAdministrationRequest(string MedicationName, string Dose, string Route, DateTime AdministeredAt);
 
-public record HospitalizationDto(int Id, DateTime StartDate, DateTime? EndDate, string Status, string Reason, int PetId, string? PetName, int? AssignedVetId);
+public record ChangeStatusRequest(string Status);
 
-public record EvolutionDto(int Id, DateTime RecordedAt, decimal? Temperature, int? HeartRate, int? RespiratoryRate, string Observations);
+public record HospitalizationDto(int Id, DateTime StartDate, DateTime? EndDate, string Status, string Reason, int PetId, string? PetName, int? AssignedVetId, string? AssignedVetName);
 
-public record MedicationDto(int Id, string MedicationName, string Dose, string Route, DateTime AdministeredAt);
+public record EvolutionDto(int Id, DateTime RecordedAt, decimal? Temperature, int? HeartRate, int? RespiratoryRate, string Observations, string? RecordedByName);
+
+public record MedicationDto(int Id, string MedicationName, string Dose, string Route, DateTime AdministeredAt, string? AdministeredByName);
 
 public record HospitalizationDetailDto(
     int Id,
@@ -23,5 +25,7 @@ public record HospitalizationDetailDto(
     string Notes,
     int PetId,
     string? PetName,
+    int? AssignedVetId,
+    string? AssignedVetName,
     IReadOnlyList<EvolutionDto> Evolutions,
     IReadOnlyList<MedicationDto> Medications);

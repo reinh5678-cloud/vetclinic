@@ -1,0 +1,189 @@
+- generic [ref=e31]:
+  - complementary [ref=e32]:
+    - generic [ref=e42]:
+      - generic [ref=e43]: VetClinic
+      - generic [ref=e44]: Sistema de gestión
+    - navigation [ref=e45]:
+      - link "Dashboard" [ref=e46] [cursor=pointer]:
+        - /url: /
+      - link "Pacientes" [ref=e49] [cursor=pointer]:
+        - /url: /pacientes
+      - link "Agenda" [ref=e56] [cursor=pointer]:
+        - /url: /agenda
+      - link "Historia Clínica" [ref=e59] [cursor=pointer]:
+        - /url: /historia
+      - link "Hospitalización" [ref=e62] [cursor=pointer]:
+        - /url: /hospitalizacion
+      - link "Inventario" [ref=e65] [cursor=pointer]:
+        - /url: /inventario
+      - link "Facturación" [ref=e68] [cursor=pointer]:
+        - /url: /facturacion
+      - link "Configuración" [ref=e71] [cursor=pointer]:
+        - /url: /configuracion
+    - generic [ref=e76]:
+      - generic [ref=e77]: A
+      - generic [ref=e78]:
+        - paragraph [ref=e79]: Administrador
+        - paragraph [ref=e80]: Administrador
+      - button "Salir" [ref=e81] [cursor=pointer]
+  - main [ref=e84]:
+    - generic [ref=e85]:
+      - button "Cambiar por PIN" [ref=e86] [cursor=pointer]
+      - generic [ref=e87]: A
+    - generic [ref=e90]:
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - heading "Hola, Administrador" [level=2] [ref=e93]
+          - paragraph [ref=e94]: Resumen de Administrador · actualizado 04:03 p. m.
+        - generic [ref=e95]:
+          - combobox "Período" [ref=e96]:
+            - option "Hoy"
+            - option "Últimos 7 días"
+            - option "Últimos 30 días" [selected]
+            - option "Este mes"
+            - option "Este año"
+            - option "Personalizado"
+          - button "Actualizar" [ref=e97] [cursor=pointer]
+      - generic [ref=e100]:
+        - button "Nueva cita" [ref=e101] [cursor=pointer]
+        - button "Nuevo paciente" [ref=e104] [cursor=pointer]
+        - button "Nueva factura" [ref=e107] [cursor=pointer]
+        - button "Registrar consulta" [ref=e110] [cursor=pointer]
+      - generic [ref=e113]:
+        - heading "Hoy en la clínica" [level=3] [ref=e114]
+        - generic [ref=e115]:
+          - button "Citas hoy 0" [ref=e116] [cursor=pointer]:
+            - generic [ref=e120]:
+              - generic [ref=e121]: Citas hoy
+              - generic [ref=e122]: "0"
+          - generic [ref=e127]:
+            - generic [ref=e128]: Citas pendientes
+            - generic [ref=e129]: "0"
+          - generic [ref=e134]:
+            - generic [ref=e135]: En espera / consulta
+            - generic [ref=e136]: "0"
+          - generic [ref=e141]:
+            - generic [ref=e142]: Urgencias abiertas
+            - generic [ref=e143]: "0"
+          - button "Hospitalizados activos 0" [ref=e144] [cursor=pointer]:
+            - generic [ref=e148]:
+              - generic [ref=e149]: Hospitalizados activos
+              - generic [ref=e150]: "0"
+          - button "Vacunas próximas (30 d) 0" [ref=e151] [cursor=pointer]:
+            - generic [ref=e155]:
+              - generic [ref=e156]: Vacunas próximas (30 d)
+              - generic [ref=e157]: "0"
+          - generic [ref=e162]:
+            - generic [ref=e163]: Recordatorios pendientes
+            - generic [ref=e164]: "0"
+          - button "Facturas sin cobrar 0 $0,00" [ref=e165] [cursor=pointer]:
+            - generic [ref=e169]:
+              - generic [ref=e170]: Facturas sin cobrar
+              - generic [ref=e171]: "0"
+              - generic [ref=e172]: $0,00
+      - generic [ref=e173]:
+        - heading "Finanzas · últimos 30 días" [level=3] [ref=e174]
+        - generic [ref=e175]:
+          - generic [ref=e180]:
+            - generic [ref=e181]: Ingresos (pagadas)
+            - generic [ref=e182]: $0,00
+            - generic [ref=e183]: Sin período anterior comparable
+          - button "Facturas (pagadas) 0" [ref=e184] [cursor=pointer]:
+            - generic [ref=e188]:
+              - generic [ref=e189]: Facturas (pagadas)
+              - generic [ref=e190]: "0"
+          - button "Pacientes 3" [ref=e191] [cursor=pointer]:
+            - generic [ref=e195]:
+              - generic [ref=e196]: Pacientes
+              - generic [ref=e197]: "3"
+          - generic [ref=e202]:
+            - generic [ref=e203]: Clientes
+            - generic [ref=e204]: "7"
+          - button "Citas programadas (período) 1" [ref=e205] [cursor=pointer]:
+            - generic [ref=e209]:
+              - generic [ref=e210]: Citas programadas (período)
+              - generic [ref=e211]: "1"
+          - button "Stock bajo 9" [ref=e212] [cursor=pointer]:
+            - generic [ref=e216]:
+              - generic [ref=e217]: Stock bajo
+              - generic [ref=e218]: "9"
+        - generic [ref=e219]:
+          - generic [ref=e220]:
+            - generic [ref=e221]:
+              - heading "Ingresos últimos 12 meses" [level=4] [ref=e222]
+              - generic [ref=e223]: "Total: $0,00"
+            - generic [ref=e224]: Sin datos en el período.
+          - generic [ref=e225]:
+            - heading "Retención" [level=4] [ref=e226]
+            - generic [ref=e231]:
+              - generic [ref=e232]: 0%
+              - generic [ref=e233]: Retención de clientes
+              - generic [ref=e234]: 0 de 7 clientes recurrentes
+      - generic [ref=e235]:
+        - generic [ref=e236]:
+          - heading "Stock bajo" [level=3] [ref=e237]
+          - button "Ver inventario" [ref=e238] [cursor=pointer]
+        - table [ref=e240]:
+          - rowgroup [ref=e241]:
+            - row [ref=e242]:
+              - columnheader "Artículo" [ref=e243]
+              - columnheader "Categoría" [ref=e244]
+              - columnheader "Código" [ref=e245]
+              - columnheader "Stock" [ref=e246]
+              - columnheader "Mínimo" [ref=e247]
+          - rowgroup [ref=e248]:
+            - row [ref=e249]:
+              - cell "Pipeta Antipulgas" [ref=e250]
+              - cell "Parasiticidas" [ref=e251]
+              - cell "INS-003" [ref=e252]
+              - cell "0 dosis" [ref=e253]
+              - cell "15 dosis" [ref=e255]
+            - row [ref=e256]:
+              - cell "Vacuna Polivalente Felina" [ref=e257]
+              - cell "Vacunas" [ref=e258]
+              - cell "VAC-002" [ref=e259]
+              - cell "0 dosis" [ref=e260]
+              - cell "8 dosis" [ref=e262]
+            - row [ref=e263]:
+              - cell "Vacuna Parvovirosis" [ref=e264]
+              - cell "Vacunas" [ref=e265]
+              - cell "VAC-003" [ref=e266]
+              - cell "0 dosis" [ref=e267]
+              - cell "5 dosis" [ref=e269]
+            - row [ref=e270]:
+              - cell "Ivermectina 1%" [ref=e271]
+              - cell "Antiparasitarios" [ref=e272]
+              - cell "MED-002" [ref=e273]
+              - cell "0 ml" [ref=e274]
+              - cell "50 ml" [ref=e276]
+            - row [ref=e277]:
+              - cell "Metronidazol 125mg" [ref=e278]
+              - cell "Antibióticos" [ref=e279]
+              - cell "MED-003" [ref=e280]
+              - cell "0 tab" [ref=e281]
+              - cell "10 tab" [ref=e283]
+            - row [ref=e284]:
+              - cell "Ketoprofeno 10%" [ref=e285]
+              - cell "Antiinflamatorios" [ref=e286]
+              - cell "MED-004" [ref=e287]
+              - cell "0 ml" [ref=e288]
+              - cell "10 ml" [ref=e290]
+            - row [ref=e291]:
+              - cell "Suero Fisiológico 500ml" [ref=e292]
+              - cell "Insumos" [ref=e293]
+              - cell "INS-002" [ref=e294]
+              - cell "0 sachet" [ref=e295]
+              - cell "10 sachet" [ref=e297]
+            - row [ref=e298]:
+              - cell "Croquetas Adulto 3kg" [ref=e299]
+              - cell "Alimentos" [ref=e300]
+              - cell "ALI-001" [ref=e301]
+              - cell "5 bolsa" [ref=e302]
+              - cell "5 bolsa" [ref=e304]
+            - row [ref=e305]:
+              - cell "Amoxicilina 250mg" [ref=e306]
+              - cell "Antibióticos" [ref=e307]
+              - cell "MED-001" [ref=e308]
+              - cell "8 tab" [ref=e309]
+              - cell "20 tab" [ref=e311]
+      - paragraph [ref=e315]: Los indicadores financieros respetan el período seleccionado. La tendencia muestra siempre los últimos 12 meses.

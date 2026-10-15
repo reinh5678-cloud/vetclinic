@@ -21,6 +21,8 @@ public static class Permissions
     public const string InvoicesView = "invoices.view";
     public const string InvoicesManage = "invoices.manage";
     public const string ReportsView = "reports.view";
+    public const string SettingsView = "settings.view";
+    public const string SettingsManage = "settings.manage";
 
     public static readonly string[] All =
     {
@@ -30,7 +32,7 @@ public static class Permissions
         HospitalizationView, HospitalizationManage,
         InventoryView, InventoryManage,
         InvoicesView, InvoicesManage,
-        ReportsView
+        ReportsView, SettingsView, SettingsManage
     };
 
     public static readonly IReadOnlyList<PermissionInfo> Catalog = new[]
@@ -47,6 +49,8 @@ public static class Permissions
         new PermissionInfo(InventoryManage, "Inventario", "Gestionar inventario (altas, ajustes)"),
         new PermissionInfo(InvoicesView, "Facturación", "Ver facturas"),
         new PermissionInfo(InvoicesManage, "Facturación", "Emitir y cobrar facturas"),
-        new PermissionInfo(ReportsView, "Reportes", "Ver reportes y dashboard financiero")
+        new PermissionInfo(ReportsView, "Reportes", "Ver reportes y dashboard financiero"),
+        new PermissionInfo(SettingsView, "Configuración", "Ver la configuración del sistema"),
+        new PermissionInfo(SettingsManage, "Configuración", "Editar la configuración del sistema")
     };
 }

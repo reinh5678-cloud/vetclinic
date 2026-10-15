@@ -27,12 +27,25 @@ public class LocalFileStorage : IFileStorage
         return Path.Combine(relativeFolder, storedName).Replace('\\', '/');
     }
 
-    public string? GetPhysicalPath(string relativePath)
+    public string? GetPhysicalPath(string? relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath)) return null;
 
         var full = Path.GetFullPath(Path.Combine(_basePath, relativePath.Replace('/', Path.DirectorySeparatorChar)));
         if (!full.StartsWith(_basePath, StringComparison.OrdinalIgnoreCase)) return null;
         return File.Exists(full) ? full : null;
+    }
+
+    public void Delete(string? relativePath)
+    {
+        var path = GetPhysicalPath(relativePath);
+        if (path is null) return;
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+        }
     }
 }

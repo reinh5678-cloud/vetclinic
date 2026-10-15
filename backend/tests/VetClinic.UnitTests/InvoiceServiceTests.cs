@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Moq;
 using VetClinic.Application.DTOs;
 using VetClinic.Application.Interfaces;
@@ -11,7 +10,7 @@ namespace VetClinic.UnitTests;
 public class InvoiceServiceTests
 {
     private static InvoiceService CreateService(
-        IConfiguration configuration,
+        ISettingsService settings,
         IRepository<InventoryItem>? inventory = null,
         Tutor? tutor = null)
     {
@@ -33,20 +32,18 @@ public class InvoiceServiceTests
         if (tutor is not null)
             tutors.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(tutor);
 
-        return new InvoiceService(invoices.Object, inventory, lots.Object, movements.Object, tutors.Object, pets.Object, uow.Object, configuration, currentUser.Object);
+        return new InvoiceService(invoices.Object, inventory, lots.Object, movements.Object, tutors.Object, pets.Object, uow.Object, settings, currentUser.Object);
     }
 
-    private static IConfiguration Config(string? taxRate)
+    private static ISettingsService Settings(decimal taxRate) => new FakeSettingsService
     {
-        var config = new Mock<IConfiguration>();
-        config.SetupGet(c => c["Billing:TaxRate"]).Returns(taxRate);
-        return config.Object;
-    }
+        Billing = new BillingSettingsDto(taxRate, "MXN", "$", "FAC", new[] { "Efectivo", "Tarjeta", "Transferencia" }, string.Empty)
+    };
 
     [Fact]
     public async Task CreateAsync_Should_Use_Default_16_Percent_When_Not_Configured()
     {
-        var service = CreateService(Config(null), tutor: new Tutor { Id = 1, FirstName = "John", LastName = "Doe" });
+        var service = CreateService(Settings(0.16m), tutor: new Tutor { Id = 1, FirstName = "John", LastName = "Doe" });
         var request = new CreateInvoiceRequest(1, null, InvoiceStatus.Borrador, "Efectivo",
             new[] { new InvoiceLineRequest("Consulta", 1m, 100m, null) });
 
@@ -60,7 +57,7 @@ public class InvoiceServiceTests
     [Fact]
     public async Task CreateAsync_Should_Use_Configured_TaxRate()
     {
-        var service = CreateService(Config("0"), tutor: new Tutor { Id = 1, FirstName = "John", LastName = "Doe" });
+        var service = CreateService(Settings(0m), tutor: new Tutor { Id = 1, FirstName = "John", LastName = "Doe" });
         var request = new CreateInvoiceRequest(1, null, InvoiceStatus.Borrador, "Efectivo",
             new[] { new InvoiceLineRequest("Consulta", 1m, 100m, null) });
 
@@ -78,7 +75,7 @@ public class InvoiceServiceTests
         var inventory = new Mock<IRepository<InventoryItem>>();
         inventory.Setup(r => r.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(item);
 
-        var service = CreateService(Config(null), inventory.Object, new Tutor { Id = 1, FirstName = "John", LastName = "Doe" });
+        var service = CreateService(Settings(0.16m), inventory.Object, new Tutor { Id = 1, FirstName = "John", LastName = "Doe" });
         var request = new CreateInvoiceRequest(1, null, InvoiceStatus.Borrador, "Efectivo",
             new[] { new InvoiceLineRequest("Jeringa", 1.5m, 20m, 7) });
 

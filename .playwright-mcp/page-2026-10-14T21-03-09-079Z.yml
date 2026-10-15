@@ -1,0 +1,25 @@
+- generic [ref=e4]:
+  - heading "VetClinic" [level=1] [ref=e13]
+  - paragraph [ref=e14]: Inicia sesión para continuar
+  - generic [ref=e15]:
+    - generic [ref=e16]: Usuario
+    - textbox "Usuario" [ref=e17]: admin
+  - generic [ref=e18]:
+    - generic [ref=e19]: Contraseña
+    - textbox "Contraseña" [ref=e20]: Admin123!
+  - button "Entrar" [ref=e21] [cursor=pointer]
+  - generic [ref=e22]:
+    - paragraph [ref=e23]: "Usuarios demo:"
+    - list [ref=e24]:
+      - listitem [ref=e25]:
+        - text: admin / Admin123!
+        - generic [ref=e26]: (Administrador)
+        - text: — PIN 1111
+      - listitem [ref=e27]:
+        - text: vet / Vet123!
+        - generic [ref=e28]: (Veterinario)
+        - text: — PIN 2222
+      - listitem [ref=e29]:
+        - text: recepcion / Recep123!
+        - generic [ref=e30]: (Recepcionista)
+        - text: — PIN 3333

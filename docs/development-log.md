@@ -112,13 +112,18 @@ Método + ruta + rol requerido.
 
 Cada endpoint exige el permiso indicado mediante la política `perm:<código>` (`RequirePermissionAttribute`); sin él → `403`.
 
-### Agenda (el sistema valida cruces de horarios)
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/api/appointments` | Agendar cita (rechaza solapamiento del veterinario) |
-| GET | `/api/appointments/upcoming` | Citas próximas |
-| GET | `/api/appointments/pet/{petId}` | Historial de citas de una mascota |
-| PATCH | `/api/appointments/{id}/status` | Cambiar estado (EnConsulta, Completada, etc.) |
+### Agenda (`appointments.view` lectura / `appointments.manage` escritura)
+| Método | Ruta | Permiso | Descripción |
+|---|---|---|---|
+| GET | `/api/appointments` | view | Listar con filtros `from`, `to`, `vetId`, `status`, `petId` (máx. 500) |
+| GET | `/api/appointments/upcoming` | view | Citas próximas |
+| GET | `/api/appointments/{id}` | view | Detalle de una cita |
+| GET | `/api/appointments/pet/{petId}` | view | Historial de citas de una mascota |
+| POST | `/api/appointments` | manage | Agendar cita (valida paciente, veterinario activo y solapamiento) |
+| PUT | `/api/appointments/{id}` | manage | Reprogramar (fecha, duración, urgencia, motivo, paciente, veterinario) |
+| PATCH | `/api/appointments/{id}/status` | manage | Cambiar estado (opcional `notes`) según transiciones permitidas |
+
+Reglas: duración 5–480 min; no agendar con más de 5 min en el pasado; el veterinario debe existir, estar activo y tener rol `Veterinario`; el solapamiento se evalúa solo contra estados activos (`Programada`, `EnEspera`, `EnConsulta`) excluyendo la propia cita; `Completada`/`Cancelada` son estados terminales (no se reprograman).
 
 ### Historia Clínica (Veterinario / Administrador)
 | Método | Ruta | Descripción |
@@ -196,7 +201,7 @@ Los contratos son **DTOs tipados** (`Application/DTOs/ReportDtos.cs`), no objeto
 | `/login` | Login | Autenticación JWT |
 | `/` | Dashboard | Panel por rol: KPIs operativos (todos) + financieros/gráficos (solo Admin) |
 | `/pacientes` | Pacientes | Subpestañas **Pacientes** (buscar/filtrar por nombre/especie/estado, alta/edición, baja lógica y **ficha expandible** con vacunas, consultas y citas), **Tutores** (alta/edición con conteo de mascotas) y **Vacunas y recordatorios** (próximas dosis por rango de días) |
-| `/agenda` | Agenda | Crear cita + cambiar estado |
+| `/agenda` | Agenda | Vistas **Hoy / Próximas / Todas** + filtros por veterinario y estado; agendar con selector de fecha/hora y duración; **reprogramar** (modal) y cambio de estado con nota (cancelación) |
 | `/historia` | Historia Clínica | Selección de mascota → consultas con recetas, laboratorio y adjuntos; agregar nueva consulta |
 | `/hospitalizacion` | Hospitalización | Ingresar, registrar evolución y medicación, dar de alta |
 | `/inventario` | Inventario | Crear artículo, entrada/salida de stock, alertas |
@@ -254,6 +259,17 @@ Nota de depuración: al probar con `Invoke-RestMethod` en PowerShell 5.1 los JSO
 ---
 
 ## 12. Registro de cambios
+
+### 2026-10-13 — Agenda v2 (Fase 1)
+1. **Autorización por permisos**: `AppointmentsController` exige `appointments.view` (lectura) o `appointments.manage` (escritura) por endpoint, vía `RequirePermissionAttribute`.
+2. **Validaciones de agendado** (`AppointmentService`): duración 5–480 min; fecha no más de 5 min en el pasado; el paciente debe existir; el veterinario debe existir, estar activo y tener rol `Veterinario`; solapamiento evaluado contra estados activos (`Programada`, `EnEspera`, `EnConsulta`) excluyendo la propia cita.
+3. **Reprogramación**: nuevo `PUT /api/appointments/{id}` + `UpdateAppointmentRequest`; rechaza citas en estado terminal (`Completada`, `Cancelada`).
+4. **Listado con filtros**: nuevo `GET /api/appointments?from&to&vetId&status&petId` + `ListAsync` (tope 500), con `AppointmentDto` ampliado (`DurationMinutes`, `Notes`, `PetId`, `VetId`).
+5. **Estado con nota**: `UpdateAppointmentStatusRequest` admite `notes` opcional (se usa al cancelar).
+6. **Frontend**: `api/appointments.ts` (tipos, transiciones, helpers de fecha/hora); `AppointmentsPage` reescrito (vistas Hoy/Próximas/Todas, filtros, selector real de fecha/hora y duración, escritura gated por `can('appointments.manage')`); nuevo `pages/appointments/RescheduleDialog.tsx`.
+7. **Pruebas**: `AppointmentServiceTests` reescrito con `Build(...)` (3 repos: citas, mascotas, usuarios) y casos de validación/listado/reprogramación. Total **48/48**.
+
+Verificación: `dotnet build` (0 errores), `dotnet test` (48/48), `npm run lint` (solo warnings preexistentes), `npm run build` (OK).
 
 ### 2026-10-13 — Módulo Pacientes (rework)
 1. **Autorización por permisos**: nuevo `RequirePermissionAttribute` y política `perm:<código>` (registrada en `Program.cs` a partir de `Permissions.All`); helper `Permissions.PolicyName` y constante de claim `Permissions.ClaimType`. `PatientsController` exige `patients.view` (lectura) o `patients.manage` (escritura) por endpoint.

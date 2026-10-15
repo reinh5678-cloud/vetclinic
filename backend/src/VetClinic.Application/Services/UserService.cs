@@ -7,16 +7,20 @@ namespace VetClinic.Application.Services;
 
 public class UserService : IUserService
 {
-    private const int MinPasswordLength = 6;
-
     private readonly IRepository<User> _users;
     private readonly IRepository<Role> _roles;
+    private readonly ISettingsService _settings;
     private readonly ICurrentUser _currentUser;
 
-    public UserService(IRepository<User> users, IRepository<Role> roles, ICurrentUser currentUser)
+    public UserService(
+        IRepository<User> users,
+        IRepository<Role> roles,
+        ISettingsService settings,
+        ICurrentUser currentUser)
     {
         _users = users;
         _roles = roles;
+        _settings = settings;
         _currentUser = currentUser;
     }
 
@@ -36,9 +40,11 @@ public class UserService : IUserService
         if (string.IsNullOrWhiteSpace(username))
             throw new ArgumentException("El nombre de usuario es obligatorio.");
 
+        var security = await _settings.GetSecurityAsync(ct);
+
         var password = request.Password ?? string.Empty;
-        if (password.Length < MinPasswordLength)
-            throw new ArgumentException($"La contraseña debe tener al menos {MinPasswordLength} caracteres.");
+        if (password.Length < security.PasswordMinLength)
+            throw new ArgumentException($"La contraseña debe tener al menos {security.PasswordMinLength} caracteres.");
 
         if (await _users.Query().AnyAsync(u => u.Username == username, ct))
             throw new InvalidOperationException("Ya existe un usuario con ese nombre de usuario.");
@@ -46,7 +52,7 @@ public class UserService : IUserService
         var role = await _roles.GetByIdAsync(request.RoleId, ct)
             ?? throw new ArgumentException("El rol seleccionado no existe.");
 
-        var pin = NormalizePin(request.Pin);
+        var pin = NormalizePin(request.Pin, security.PinLength);
         if (pin is not null && await _users.Query().AnyAsync(u => u.PinAccess == pin, ct))
             throw new InvalidOperationException("Ese PIN ya está en uso por otro usuario.");
 
@@ -103,9 +109,10 @@ public class UserService : IUserService
         if (user is null)
             return false;
 
+        var security = await _settings.GetSecurityAsync(ct);
         var password = request.Password ?? string.Empty;
-        if (password.Length < MinPasswordLength)
-            throw new ArgumentException($"La contraseña debe tener al menos {MinPasswordLength} caracteres.");
+        if (password.Length < security.PasswordMinLength)
+            throw new ArgumentException($"La contraseña debe tener al menos {security.PasswordMinLength} caracteres.");
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
         _users.Update(user);
@@ -121,7 +128,8 @@ public class UserService : IUserService
         if (user is null)
             return null;
 
-        var pin = NormalizePin(request.Pin);
+        var security = await _settings.GetSecurityAsync(ct);
+        var pin = NormalizePin(request.Pin, security.PinLength);
         if (pin is not null && await _users.Query().AnyAsync(u => u.PinAccess == pin && u.Id != id, ct))
             throw new InvalidOperationException("Ese PIN ya está en uso por otro usuario.");
 
@@ -131,10 +139,14 @@ public class UserService : IUserService
         return Map(user);
     }
 
-    private static string? NormalizePin(string? pin)
+    private static string? NormalizePin(string? pin, int pinLength)
     {
         var value = (pin ?? string.Empty).Trim();
-        return value.Length == 0 ? null : value;
+        if (value.Length == 0)
+            return null;
+        if (value.Length != pinLength)
+            throw new ArgumentException($"El PIN debe tener exactamente {pinLength} dígitos.");
+        return value;
     }
 
     private static AdminUserDto Map(User user) => new(
