@@ -14,8 +14,18 @@ namespace VetClinic.Api.Controllers;
 public class AppointmentsController : ControllerBase
 {
     private readonly IAppointmentService _service;
+    private readonly ISettingsService _settings;
 
-    public AppointmentsController(IAppointmentService service) => _service = service;
+    public AppointmentsController(IAppointmentService service, ISettingsService settings)
+    {
+        _service = service;
+        _settings = settings;
+    }
+
+    [HttpGet("config")]
+    [RequirePermission(Permissions.AppointmentsView)]
+    public async Task<IActionResult> GetConfig(CancellationToken ct)
+        => Ok(await _settings.GetAgendaAsync(ct));
 
     [HttpPost]
     [RequirePermission(Permissions.AppointmentsManage)]

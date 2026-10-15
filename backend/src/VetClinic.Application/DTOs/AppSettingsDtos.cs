@@ -4,6 +4,7 @@ public record ClinicSettingsDto(
     string Name,
     string LegalName,
     string TaxId,
+    string TaxIdType,
     string Address,
     string Phone,
     string Email,

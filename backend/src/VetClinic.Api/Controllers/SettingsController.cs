@@ -14,15 +14,18 @@ public class SettingsController : ControllerBase
     private const string DefaultAttachmentsPath = "uploads/attachments";
 
     private readonly ISettingsService _settings;
+    private readonly IInventoryService _inventory;
     private readonly IConfiguration _configuration;
     private readonly IWebHostEnvironment _environment;
 
     public SettingsController(
         ISettingsService settings,
+        IInventoryService inventory,
         IConfiguration configuration,
         IWebHostEnvironment environment)
     {
         _settings = settings;
+        _inventory = inventory;
         _configuration = configuration;
         _environment = environment;
     }
@@ -66,6 +69,15 @@ public class SettingsController : ControllerBase
     [HttpPut("inventory")]
     public async Task<IActionResult> UpdateInventory(InventorySettingsDto request, CancellationToken ct)
         => Ok(await _settings.SaveInventoryAsync(request, ct));
+
+    [HttpGet("inventory/usage")]
+    public async Task<IActionResult> InventoryUsage(CancellationToken ct)
+    {
+        var items = await _inventory.ListAsync(new InventoryQuery(IncludeInactive: true), ct);
+        var categories = items.GroupBy(i => i.Category).ToDictionary(g => g.Key, g => g.Count());
+        var units = items.GroupBy(i => i.Unit).ToDictionary(g => g.Key, g => g.Count());
+        return Ok(new { categories, units });
+    }
 
     [HttpGet("security")]
     public async Task<IActionResult> GetSecurity(CancellationToken ct)

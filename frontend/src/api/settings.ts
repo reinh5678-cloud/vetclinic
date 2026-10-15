@@ -4,6 +4,7 @@ export interface ClinicSettings {
   name: string;
   legalName: string;
   taxId: string;
+  taxIdType: string;
   address: string;
   phone: string;
   email: string;
@@ -46,30 +47,9 @@ export interface SecuritySettings {
   maxFailedAttempts: number;
 }
 
-export interface NotificationSettings {
-  enabled: boolean;
-  smtpHost: string;
-  smtpPort: number;
-  smtpUser: string;
-  smtpPasswordSet: boolean;
-  useTls: boolean;
-  fromName: string;
-  fromEmail: string;
-  channels: string[];
-  vaccineReminderDaysBefore: number;
-}
-
-export interface UpdateNotificationsInput {
-  enabled: boolean;
-  smtpHost: string;
-  smtpPort: number;
-  smtpUser: string;
-  smtpPassword?: string | null;
-  useTls: boolean;
-  fromName: string;
-  fromEmail: string;
-  channels: string[];
-  vaccineReminderDaysBefore: number;
+export interface InventoryUsage {
+  categories: Record<string, number>;
+  units: Record<string, number>;
 }
 
 export interface SystemInfo {
@@ -103,14 +83,10 @@ export const getInventory = () => api<InventorySettings>('/settings/inventory');
 export const saveInventory = (body: InventorySettings) =>
   api<InventorySettings>('/settings/inventory', { method: 'PUT', body: JSON.stringify(body) });
 
+export const getInventoryUsage = () => api<InventoryUsage>('/settings/inventory/usage');
+
 export const getSecurity = () => api<SecuritySettings>('/settings/security');
 export const saveSecurity = (body: SecuritySettings) =>
   api<SecuritySettings>('/settings/security', { method: 'PUT', body: JSON.stringify(body) });
-
-export const getNotifications = () => api<NotificationSettings>('/settings/notifications');
-export const saveNotifications = (body: UpdateNotificationsInput) =>
-  api<NotificationSettings>('/settings/notifications', { method: 'PUT', body: JSON.stringify(body) });
-export const testNotifications = () =>
-  api<{ ok: boolean; message: string }>('/settings/notifications/test', { method: 'POST' });
 
 export const getSystemInfo = () => api<SystemInfo>('/settings/system');

@@ -1,4 +1,5 @@
 import SettingsSection from './SettingsSection';
+import NumberInput from './NumberInput';
 import { useSettingsSection } from './useSettingsSection';
 import type { AgendaSettings } from '../../api/settings';
 
@@ -44,15 +45,15 @@ export default function AgendaPanel() {
           </div>
           <div className="field">
             <label className="label">Intervalo de agenda (min)</label>
-            <input type="number" min={5} max={240} className="input" value={value.slotMinutes} onChange={(e) => update('slotMinutes', Number(e.target.value))} />
+            <NumberInput min={5} max={240} className="input" value={value.slotMinutes} onChange={(n) => update('slotMinutes', n)} />
           </div>
           <div className="field">
             <label className="label">Duración por defecto (min)</label>
-            <input type="number" min={5} className="input" value={value.defaultDurationMinutes} onChange={(e) => update('defaultDurationMinutes', Number(e.target.value))} />
+            <NumberInput min={5} className="input" value={value.defaultDurationMinutes} onChange={(n) => update('defaultDurationMinutes', n)} />
           </div>
           <div className="field">
             <label className="label">Antelación máxima (días)</label>
-            <input type="number" min={1} max={730} className="input" value={value.maxAdvanceDays} onChange={(e) => update('maxAdvanceDays', Number(e.target.value))} />
+            <NumberInput min={1} max={730} className="input" value={value.maxAdvanceDays} onChange={(n) => update('maxAdvanceDays', n)} />
           </div>
           <div className="field sm:col-span-2">
             <label className="label">Días cerrados</label>

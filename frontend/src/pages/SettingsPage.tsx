@@ -6,7 +6,6 @@ const TABS = [
   { to: 'agenda', label: 'Agenda' },
   { to: 'inventario', label: 'Inventario' },
   { to: 'seguridad', label: 'Seguridad' },
-  { to: 'notificaciones', label: 'Notificaciones' },
   { to: 'usuarios', label: 'Usuarios' },
   { to: 'roles', label: 'Roles' },
   { to: 'sistema', label: 'Sistema' },

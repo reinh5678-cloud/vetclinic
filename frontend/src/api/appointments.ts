@@ -1,4 +1,5 @@
 import { api } from './client';
+import type { AgendaSettings } from './settings';
 
 export type UrgencyLevel = 'Baja' | 'Media' | 'Alta' | 'Emergencia';
 export const URGENCIES: UrgencyLevel[] = ['Baja', 'Media', 'Alta', 'Emergencia'];
@@ -30,6 +31,8 @@ export const STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> 
 };
 
 export const TERMINAL_STATUSES: AppointmentStatus[] = ['Completada', 'Cancelada'];
+
+export const ACTIVE_STATUSES: AppointmentStatus[] = ['Programada', 'EnEspera', 'EnConsulta'];
 
 export const STATUS_BADGE: Record<string, string> = {
   Programada: 'badge-info',
@@ -106,6 +109,8 @@ export const updateAppointmentStatus = (id: number, status: AppointmentStatus, n
 export const listAppointmentsByPet = (petId: number) =>
   api<Appointment[]>(`/appointments/pet/${petId}`);
 
+export const getAppointmentConfig = () => api<AgendaSettings>('/appointments/config');
+
 const pad = (n: number) => String(n).padStart(2, '0');
 
 export function toDateTimeLocal(iso: string): string {
@@ -123,4 +128,37 @@ export function defaultStartLocal(): string {
   d.setSeconds(0, 0);
   d.setMinutes(Math.ceil(d.getMinutes() / 30) * 30);
   return toDateTimeLocal(d.toISOString());
+}
+
+export function toDateInput(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export function futureDateInput(days: number): string {
+  return toDateInput(new Date(Date.now() + days * 86_400_000));
+}
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+export function parseTimeToMinutes(value: string): number {
+  const [h, m] = value.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return Number.NaN;
+  return h * 60 + m;
+}
+
+export function buildSlots(agenda: AgendaSettings): string[] {
+  const open = parseTimeToMinutes(agenda.openingTime);
+  const close = parseTimeToMinutes(agenda.closingTime);
+  const step = agenda.slotMinutes;
+  if (!Number.isFinite(open) || !Number.isFinite(close) || step <= 0 || close <= open) return [];
+  const slots: string[] = [];
+  for (let t = open; t < close; t += step) {
+    slots.push(`${pad(Math.floor(t / 60))}:${pad(t % 60)}`);
+  }
+  return slots;
+}
+
+export function isClosedDay(agenda: AgendaSettings, date: Date): boolean {
+  const name = WEEKDAY_NAMES[date.getDay()];
+  return agenda.closedWeekdays.includes(name);
 }

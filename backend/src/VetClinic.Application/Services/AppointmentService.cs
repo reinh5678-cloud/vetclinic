@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using VetClinic.Application.DTOs;
 using VetClinic.Application.Interfaces;
@@ -185,9 +186,47 @@ public class AppointmentService : IAppointmentService
         var agenda = await _settings.GetAgendaAsync(ct);
         if (durationMinutes < agenda.SlotMinutes || durationMinutes > 480)
             throw new ArgumentException($"La duración debe estar entre {agenda.SlotMinutes} y 480 minutos");
-        if (start < DateTime.UtcNow.AddMinutes(-5))
+
+        var utcStart = start.Kind == DateTimeKind.Local
+            ? start.ToUniversalTime()
+            : DateTime.SpecifyKind(start, DateTimeKind.Utc);
+        if (utcStart < DateTime.UtcNow.AddMinutes(-5))
             throw new ArgumentException("La fecha de la cita no puede estar en el pasado");
+
+        var tz = _settings.GetAgendaTimeZone();
+        var localStart = TimeZoneInfo.ConvertTimeFromUtc(utcStart, tz);
+        var localEnd = localStart.AddMinutes(durationMinutes);
+
+        if (TimeSpan.TryParse(agenda.OpeningTime, CultureInfo.InvariantCulture, out var opening) &&
+            TimeSpan.TryParse(agenda.ClosingTime, CultureInfo.InvariantCulture, out var closing) &&
+            closing > opening)
+        {
+            if (localEnd.Date != localStart.Date || localStart.TimeOfDay < opening || localEnd.TimeOfDay > closing)
+                throw new ArgumentException($"La cita está fuera del horario de atención ({agenda.OpeningTime}\u2013{agenda.ClosingTime})");
+        }
+
+        if (agenda.ClosedWeekdays is { Length: > 0 } &&
+            agenda.ClosedWeekdays.Any(d => Enum.TryParse<DayOfWeek>(d, true, out var day) && day == localStart.DayOfWeek))
+            throw new ArgumentException($"La clínica no atiende los {WeekdayName(localStart.DayOfWeek)}");
+
+        if (agenda.MaxAdvanceDays > 0)
+        {
+            var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).Date;
+            if (localStart.Date > todayLocal.AddDays(agenda.MaxAdvanceDays))
+                throw new ArgumentException($"Solo se puede agendar hasta {agenda.MaxAdvanceDays} días de antelación");
+        }
     }
+
+    private static string WeekdayName(DayOfWeek day) => day switch
+    {
+        DayOfWeek.Monday => "lunes",
+        DayOfWeek.Tuesday => "martes",
+        DayOfWeek.Wednesday => "miércoles",
+        DayOfWeek.Thursday => "jueves",
+        DayOfWeek.Friday => "viernes",
+        DayOfWeek.Saturday => "sábados",
+        _ => "domingos"
+    };
 
     private async Task EnsurePetAsync(int petId, CancellationToken ct)
     {

@@ -2,8 +2,16 @@ import SettingsSection from './SettingsSection';
 import { useSettingsSection } from './useSettingsSection';
 import type { ClinicSettings } from '../../api/settings';
 
+const documentTypes = [
+  { code: 'RUC', label: 'RUC (empresa)', placeholder: '20123456789', maxLength: 11, numeric: true, hint: '11 dígitos' },
+  { code: 'DNI', label: 'DNI (persona natural)', placeholder: '12345678', maxLength: 8, numeric: true, hint: '8 dígitos' },
+  { code: 'CE', label: 'Carné de extranjería', placeholder: '001234567', maxLength: 12, numeric: false, hint: '9 a 12 caracteres' },
+  { code: 'PASSPORT', label: 'Pasaporte', placeholder: 'P1234567', maxLength: 12, numeric: false, hint: '6 a 12 caracteres' },
+];
+
 export default function ClinicPanel() {
   const { value, update, save, err, msg, busy } = useSettingsSection<ClinicSettings>('clinic');
+  const taxType = documentTypes.find((t) => t.code === value?.taxIdType) ?? documentTypes[0];
 
   return (
     <SettingsSection
@@ -25,8 +33,24 @@ export default function ClinicPanel() {
             <input className="input" value={value.legalName} onChange={(e) => update('legalName', e.target.value)} />
           </div>
           <div className="field">
-            <label className="label">CUIT / NIF</label>
-            <input className="input" value={value.taxId} onChange={(e) => update('taxId', e.target.value)} />
+            <label className="label">Tipo de documento</label>
+            <select className="select" value={taxType.code} onChange={(e) => update('taxIdType', e.target.value)}>
+              {documentTypes.map((t) => (
+                <option key={t.code} value={t.code}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label className="label">Número de documento</label>
+            <input
+              className="input"
+              value={value.taxId}
+              inputMode={taxType.numeric ? 'numeric' : 'text'}
+              maxLength={taxType.maxLength}
+              placeholder={taxType.placeholder}
+              onChange={(e) => update('taxId', e.target.value)}
+            />
+            <span className="text-xs text-slate-400">{taxType.hint}</span>
           </div>
           <div className="field">
             <label className="label">Teléfono</label>

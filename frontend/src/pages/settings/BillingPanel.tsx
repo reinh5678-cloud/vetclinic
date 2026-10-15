@@ -1,4 +1,5 @@
 import SettingsSection from './SettingsSection';
+import NumberInput from './NumberInput';
 import { parseList, useSettingsSection } from './useSettingsSection';
 import type { BillingSettings } from '../../api/settings';
 
@@ -18,14 +19,14 @@ export default function BillingPanel() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="field">
             <label className="label">IVA (%)</label>
-            <input
-              type="number"
+            <NumberInput
               min={0}
               max={100}
               step="0.01"
+              scale={100}
               className="input"
-              value={(value.taxRate * 100).toString()}
-              onChange={(e) => update('taxRate', Number(e.target.value) / 100)}
+              value={value.taxRate}
+              onChange={(n) => update('taxRate', n)}
             />
           </div>
           <div className="field">

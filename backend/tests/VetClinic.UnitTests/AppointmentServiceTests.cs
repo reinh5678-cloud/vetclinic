@@ -13,7 +13,8 @@ public class AppointmentServiceTests
     private static (AppointmentService Service, Mock<IRepository<Appointment>> Appointments) Build(
         IEnumerable<Appointment>? appointments = null,
         IEnumerable<Pet>? pets = null,
-        IEnumerable<User>? users = null)
+        IEnumerable<User>? users = null,
+        AgendaSettingsDto? agenda = null)
     {
         var apptList = (appointments ?? Array.Empty<Appointment>()).ToList();
         var petList = (pets ?? Array.Empty<Pet>()).ToList();
@@ -35,7 +36,31 @@ public class AppointmentServiceTests
         var userRepo = new Mock<IRepository<User>>();
         userRepo.Setup(r => r.Query()).Returns(() => userList.BuildMockDbSet().Object);
 
-        return (new AppointmentService(apptRepo.Object, petRepo.Object, userRepo.Object, new FakeSettingsService()), apptRepo);
+        var settings = new FakeSettingsService
+        {
+            Agenda = agenda ?? new AgendaSettingsDto("00:00", "00:00", 30, 30, 3650, Array.Empty<string>())
+        };
+
+        return (new AppointmentService(apptRepo.Object, petRepo.Object, userRepo.Object, settings), apptRepo);
+    }
+
+    private static readonly AgendaSettingsDto WorkingAgenda =
+        new("08:00", "20:00", 30, 30, 90, new[] { "Sunday" });
+
+    private static DateTime NextWeekday(int hour, int minute = 0)
+    {
+        var d = DateTime.UtcNow.Date.AddDays(1).AddHours(hour).AddMinutes(minute);
+        while (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            d = d.AddDays(1);
+        return d;
+    }
+
+    private static DateTime NextDayOfWeek(DayOfWeek day, int hour)
+    {
+        var d = DateTime.UtcNow.Date.AddDays(1).AddHours(hour);
+        while (d.DayOfWeek != day)
+            d = d.AddDays(1);
+        return d;
     }
 
     private static User Vet(int id = 5) => new() { Id = id, FullName = "Dra. Vet", IsActive = true, Role = new Role { Name = "Veterinario" } };
@@ -145,5 +170,47 @@ public class AppointmentServiceTests
 
         var only = Assert.Single(result);
         Assert.Equal(1, only.Id);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Reject_Outside_Opening_Hours()
+    {
+        var (service, _) = Build(Array.Empty<Appointment>(), pets: new[] { Pet() }, users: new[] { Vet() }, agenda: WorkingAgenda);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.CreateAsync(new CreateAppointmentRequest(NextWeekday(21), 30, UrgencyLevel.Baja, "Control", 1, 5)));
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Reject_Closed_Weekday()
+    {
+        var (service, _) = Build(Array.Empty<Appointment>(), pets: new[] { Pet() }, users: new[] { Vet() }, agenda: WorkingAgenda);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.CreateAsync(new CreateAppointmentRequest(NextDayOfWeek(DayOfWeek.Sunday, 10), 30, UrgencyLevel.Baja, "Control", 1, 5)));
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Reject_Beyond_Max_Advance_Days()
+    {
+        var (service, _) = Build(Array.Empty<Appointment>(), pets: new[] { Pet() }, users: new[] { Vet() }, agenda: WorkingAgenda);
+
+        var beyond = DateTime.UtcNow.Date.AddDays(100).AddHours(10);
+        while (beyond.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            beyond = beyond.AddDays(1);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.CreateAsync(new CreateAppointmentRequest(beyond, 30, UrgencyLevel.Baja, "Control", 1, 5)));
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Accept_Slot_At_Opening_Boundary()
+    {
+        var (service, _) = Build(Array.Empty<Appointment>(), pets: new[] { Pet() }, users: new[] { Vet() }, agenda: WorkingAgenda);
+
+        var result = await service.CreateAsync(
+            new CreateAppointmentRequest(NextWeekday(8), 30, UrgencyLevel.Baja, "Control", 1, 5));
+
+        Assert.Equal("Programada", result.Status);
     }
 }

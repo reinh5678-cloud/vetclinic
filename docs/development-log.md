@@ -122,8 +122,9 @@ Cada endpoint exige el permiso indicado mediante la política `perm:<código>` (
 | POST | `/api/appointments` | manage | Agendar cita (valida paciente, veterinario activo y solapamiento) |
 | PUT | `/api/appointments/{id}` | manage | Reprogramar (fecha, duración, urgencia, motivo, paciente, veterinario) |
 | PATCH | `/api/appointments/{id}/status` | manage | Cambiar estado (opcional `notes`) según transiciones permitidas |
+| GET | `/api/appointments/config` | view | Config de agenda para el formulario (horario, `slotMinutes`, `defaultDurationMinutes`, `maxAdvanceDays`, `closedWeekdays`) |
 
-Reglas: duración 5–480 min; no agendar con más de 5 min en el pasado; el veterinario debe existir, estar activo y tener rol `Veterinario`; el solapamiento se evalúa solo contra estados activos (`Programada`, `EnEspera`, `EnConsulta`) excluyendo la propia cita; `Completada`/`Cancelada` son estados terminales (no se reprograman).
+Reglas: duración 5–480 min (mínimo = `slotMinutes` de la agenda); no agendar con más de 5 min en el pasado; **la cita debe caer dentro del horario de atención** (`openingTime`–`closingTime`) y **no en un día cerrado** (`closedWeekdays`), y **no superar la antelación máxima** (`maxAdvanceDays`); el veterinario debe existir, estar activo y tener rol `Veterinario`; el solapamiento se evalúa solo contra estados activos (`Programada`, `EnEspera`, `EnConsulta`) excluyendo la propia cita; `Completada`/`Cancelada` son estados terminales (no se reprograman). Las horas de la agenda se interpretan en la zona horaria de la clínica (`Agenda:TimeZoneId` en configuración; vacío → zona local del servidor).
 
 ### Historia Clínica (Veterinario / Administrador)
 | Método | Ruta | Descripción |
@@ -259,6 +260,26 @@ Nota de depuración: al probar con `Invoke-RestMethod` en PowerShell 5.1 los JSO
 ---
 
 ## 12. Registro de cambios
+
+### 2026-10-14 — Clínica: tipo de documento fiscal (Perú)
+1. **Modelo**: `ClinicSettingsDto` agrega `TaxIdType` (códigos `RUC`/`DNI`/`CE`/`PASSPORT`); se guarda junto a `TaxId`. Default `RUC`. `GetClinicAsync` normaliza valores vacíos/desconocidos → `RUC` (JSON legacy sin la clave también cae en el default).
+2. **Validación** (`SaveClinicAsync`): tipo dentro del conjunto permitido; si el número no está vacío, valida formato por tipo (RUC 11 dígitos, DNI 8 dígitos, CE/Pasaporte 6–12 alfanumérico). `ArgumentException` → 400.
+3. **Frontend** (`ClinicPanel`): el campo libre "CUIT / NIF" se reemplaza por un `<select>` "Tipo de documento" (opciones de Perú) + campo "Número de documento" con `inputMode`/`maxLength`/placeholder y nota de formato según el tipo; `settings.ts` agrega `taxIdType`.
+4. **Verificación**: `dotnet test` (109/109), `npm run build`, `npm run lint` (sin avisos nuevos), smoke contra la API (RUC válido 200; RUC de 8 dígitos 400).
+
+### 2026-10-14 — Franjas y duración por defecto en el formulario de citas
+1. **Endpoint de config**: `GET /api/appointments/config` (`AppointmentsController`, gated por `appointments.view`) devuelve `AgendaSettingsDto`; recepción/vet pueden leer la agenda sin ser administradores (la ruta de `SettingsController` es solo-admin).
+2. **Helpers de agenda** (`api/appointments.ts`): `getAppointmentConfig()`, `buildSlots(agenda)` (franjas de `slotMinutes` entre apertura y cierre), `isClosedDay(agenda, date)`, `parseTimeToMinutes`, `futureDateInput(days)` y `WEEKDAY_NAMES`.
+3. **Selector de franjas** (`AppointmentsPage` y `RescheduleDialog`): al elegir fecha + veterinario, las franjas ocupadas se deshabilitan (según estado activo `Programada`/`EnEspera`/`EnConsulta`) y los días cerrados muestran aviso; la duración parte de `defaultDurationMinutes` con mínimo `slotMinutes`. Fallback a `datetime-local` si la agenda no produce franjas.
+4. **Verificación**: `dotnet test` 109/109; `npm run build` OK; `npm run lint` sin avisos nuevos.
+
+### 2026-10-14 — Agenda conectada a configuración (validación de horario/días/antelación)
+1. **Validaciones de agenda** (`AppointmentService.ValidateScheduleAsync`): además de la duración (mínimo = `slotMinutes`) y del guard de pasado, ahora la cita debe caer dentro del **horario de atención** (`openingTime`–`closingTime`), no en un **día cerrado** (`closedWeekdays`) y no superar la **antelación máxima** (`maxAdvanceDays`). Todas lanzan `ArgumentException` → 400 que el front ya muestra.
+2. **Zona horaria**: `ISettingsService.GetAgendaTimeZone()` resuelve `Agenda:TimeZoneId` de configuración (nueva clave en `appsettings.json`, vacía por defecto → `TimeZoneInfo.Local`; ID inválido → `TimeZoneInfo.Utc`). El `StartTime` (UTC) se convierte a hora local de la clínica antes de comparar.
+3. **Guardado**: `SaveAgendaAsync` rechaza `closingTime <= openingTime`.
+4. **Pruebas**: `Build(...)` acepta `AgendaSettingsDto?` (default permisivo: ventana 00:00–00:00 desactivada, sin días cerrados, antelación amplia) para no volver flaky los tests existentes; se agregaron 4 casos nuevos (fuera de horario, día cerrado, exceso de antelación, límite exacto válido). Total **109/109**.
+
+Verificación: `dotnet build` (0 avisos, 0 errores), `dotnet test` (109/109).
 
 ### 2026-10-13 — Agenda v2 (Fase 1)
 1. **Autorización por permisos**: `AppointmentsController` exige `appointments.view` (lectura) o `appointments.manage` (escritura) por endpoint, vía `RequirePermissionAttribute`.

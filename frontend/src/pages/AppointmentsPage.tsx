@@ -4,20 +4,28 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import RescheduleDialog from './appointments/RescheduleDialog';
 import {
+  ACTIVE_STATUSES,
   STATUS_BADGE,
   STATUS_TRANSITIONS,
   TERMINAL_STATUSES,
   URGENCIES,
+  buildSlots,
   createAppointment,
   defaultStartLocal,
   fromDateTimeLocal,
+  futureDateInput,
+  getAppointmentConfig,
+  isClosedDay,
   listAppointments,
+  parseTimeToMinutes,
+  toDateInput,
   updateAppointmentStatus,
   type Appointment,
   type AppointmentFilters,
   type AppointmentStatus,
   type UrgencyLevel,
 } from '../api/appointments';
+import type { AgendaSettings } from '../api/settings';
 
 interface Pet { id: number; name: string; species: string; }
 interface UserLite { id: number; fullName: string; role: string; }
@@ -50,6 +58,17 @@ export default function AppointmentsPage() {
   const [reason, setReason] = useState('');
   const [startLocal, setStartLocal] = useState(defaultStartLocal());
   const [duration, setDuration] = useState('30');
+
+  const [agenda, setAgenda] = useState<AgendaSettings | null>(null);
+  const [date, setDate] = useState(() => toDateInput(new Date()));
+  const [slot, setSlot] = useState('');
+  const [occupied, setOccupied] = useState<string[]>([]);
+  const [agendaTick, setAgendaTick] = useState(0);
+
+  const slots = agenda ? buildSlots(agenda) : [];
+  const usingSlots = slots.length > 0;
+  const dayClosed = agenda ? isClosedDay(agenda, new Date(`${date}T00:00`)) : false;
+  const shownOccupied = agenda && date && vetId && !dayClosed ? occupied : [];
 
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
@@ -85,17 +104,44 @@ export default function AppointmentsPage() {
     api<UserLite[]>('/auth/users')
       .then((users) => setVets(users.filter((u) => u.role === 'Veterinario')))
       .catch(console.error);
+    getAppointmentConfig()
+      .then((cfg) => { setAgenda(cfg); setDuration(String(cfg.defaultDurationMinutes)); })
+      .catch(console.error);
   }, [canView]);
+
+  useEffect(() => {
+    if (!agenda || !date || !vetId || dayClosed) return;
+    const rangeStart = new Date(`${date}T00:00`);
+    const rangeEnd = new Date(rangeStart);
+    rangeEnd.setDate(rangeEnd.getDate() + 1);
+    const dur = Number(duration) || agenda.defaultDurationMinutes;
+    const generated = buildSlots(agenda);
+    listAppointments({ from: rangeStart.toISOString(), to: rangeEnd.toISOString(), vetId: Number(vetId) })
+      .then((appts) => {
+        const taken = generated.filter((s) => {
+          const t = parseTimeToMinutes(s);
+          return appts.some((a) => {
+            if (!ACTIVE_STATUSES.includes(a.status)) return false;
+            const d = new Date(a.startTime);
+            const am = d.getHours() * 60 + d.getMinutes();
+            return am < t + dur && am + a.durationMinutes > t;
+          });
+        });
+        setOccupied(taken);
+      })
+      .catch(() => setOccupied([]));
+  }, [agenda, date, vetId, duration, dayClosed, agendaTick]);
 
   const notify = (text: string) => { setErr(''); setMsg(text); };
 
   const create = async (e: FormEvent) => {
     e.preventDefault();
-    if (!petId || !vetId || !startLocal) return;
+    if (!petId || !vetId) return;
+    if (usingSlots ? !slot : !startLocal) return;
     setErr('');
     try {
       await createAppointment({
-        startTime: fromDateTimeLocal(startLocal),
+        startTime: usingSlots ? fromDateTimeLocal(`${date}T${slot}`) : fromDateTimeLocal(startLocal),
         durationMinutes: Number(duration),
         urgency: urgency as UrgencyLevel,
         reason,
@@ -103,7 +149,12 @@ export default function AppointmentsPage() {
         vetId: Number(vetId),
       });
       setReason('');
-      setStartLocal(defaultStartLocal());
+      if (usingSlots) {
+        setSlot('');
+        setAgendaTick((t) => t + 1);
+      } else {
+        setStartLocal(defaultStartLocal());
+      }
       notify('Cita agendada.');
       load();
     } catch (ex) {
@@ -220,21 +271,65 @@ export default function AppointmentsPage() {
               {vets.map((v) => <option key={v.id} value={v.id}>{v.fullName}</option>)}
             </select>
           </div>
-          <div className="field">
-            <label className="label">Fecha y hora</label>
-            <input
-              type="datetime-local"
-              value={startLocal}
-              onChange={(e) => setStartLocal(e.target.value)}
-              className="input"
-              required
-            />
-          </div>
+          {usingSlots ? (
+            <>
+              <div className="field">
+                <label className="label">Fecha</label>
+                <input
+                  type="date"
+                  value={date}
+                  min={toDateInput(new Date())}
+                  max={agenda ? futureDateInput(agenda.maxAdvanceDays) : undefined}
+                  onChange={(e) => { setDate(e.target.value); setSlot(''); }}
+                  className="input"
+                  required
+                />
+              </div>
+              <div className="field basis-full">
+                <label className="label">Franja horaria</label>
+                {dayClosed ? (
+                  <p className="text-sm text-amber-600">La clínica no atiende este día.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {slots.map((s) => {
+                      const isTaken = shownOccupied.includes(s);
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          disabled={isTaken}
+                          onClick={() => setSlot(s)}
+                          className={
+                            (slot === s ? 'btn btn-primary btn-xs' : 'btn btn-secondary btn-xs') +
+                            ' disabled:cursor-not-allowed disabled:opacity-40'
+                          }
+                          title={isTaken ? 'Franja ocupada' : `Agendar a las ${s}`}
+                        >
+                          {s}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="field">
+              <label className="label">Fecha y hora</label>
+              <input
+                type="datetime-local"
+                value={startLocal}
+                onChange={(e) => setStartLocal(e.target.value)}
+                className="input"
+                required
+              />
+            </div>
+          )}
           <div className="field w-28">
             <label className="label">Duración (min)</label>
             <input
               type="number"
-              min={5}
+              min={agenda ? agenda.slotMinutes : 5}
               max={480}
               step={5}
               value={duration}
@@ -353,6 +448,7 @@ export default function AppointmentsPage() {
           appointment={editing}
           pets={pets}
           vets={vets}
+          agenda={agenda}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);

@@ -27,15 +27,40 @@ public class SettingsService : ISettingsService
 
     // ---------- Clínica ----------
 
-    public Task<ClinicSettingsDto> GetClinicAsync(CancellationToken ct = default) =>
-        GetSectionAsync(AppSetting.Sections.Clinic, DefaultClinic, ct);
+    private static readonly string[] TaxIdTypes = { "RUC", "DNI", "CE", "PASSPORT" };
+
+    public async Task<ClinicSettingsDto> GetClinicAsync(CancellationToken ct = default)
+    {
+        var clinic = await GetSectionAsync(AppSetting.Sections.Clinic, DefaultClinic, ct);
+        return string.IsNullOrWhiteSpace(clinic.TaxIdType) || !TaxIdTypes.Contains(clinic.TaxIdType)
+            ? clinic with { TaxIdType = "RUC" }
+            : clinic;
+    }
 
     public Task<ClinicSettingsDto> SaveClinicAsync(ClinicSettingsDto dto, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(dto.Name))
             throw new ArgumentException("El nombre de la clínica es obligatorio.");
-        return SaveSectionAsync(AppSetting.Sections.Clinic, dto, ct);
+
+        var type = string.IsNullOrWhiteSpace(dto.TaxIdType) ? "RUC" : dto.TaxIdType.Trim().ToUpperInvariant();
+        if (!TaxIdTypes.Contains(type))
+            throw new ArgumentException("El tipo de documento no es válido (RUC, DNI, CE o PASSPORT).");
+
+        var number = dto.TaxId?.Trim() ?? string.Empty;
+        if (number.Length > 0 && !IsValidTaxId(type, number))
+            throw new ArgumentException($"El número de {type} no tiene un formato válido.");
+
+        return SaveSectionAsync(AppSetting.Sections.Clinic, dto with { TaxIdType = type, TaxId = number }, ct);
     }
+
+    private static bool IsValidTaxId(string type, string number) => type switch
+    {
+        "RUC" => number.Length == 11 && number.All(char.IsDigit),
+        "DNI" => number.Length == 8 && number.All(char.IsDigit),
+        "CE" => number.Length is >= 9 and <= 12 && number.All(char.IsLetterOrDigit),
+        "PASSPORT" => number.Length is >= 6 and <= 12 && number.All(char.IsLetterOrDigit),
+        _ => true
+    };
 
     // ---------- Facturación ----------
 
@@ -66,10 +91,12 @@ public class SettingsService : ISettingsService
 
     public Task<AgendaSettingsDto> SaveAgendaAsync(AgendaSettingsDto dto, CancellationToken ct = default)
     {
-        if (!TimeSpan.TryParse(dto.OpeningTime, CultureInfo.InvariantCulture, out _))
+        if (!TimeSpan.TryParse(dto.OpeningTime, CultureInfo.InvariantCulture, out var opening))
             throw new ArgumentException("La hora de apertura no es válida (formato HH:mm).");
-        if (!TimeSpan.TryParse(dto.ClosingTime, CultureInfo.InvariantCulture, out _))
+        if (!TimeSpan.TryParse(dto.ClosingTime, CultureInfo.InvariantCulture, out var closing))
             throw new ArgumentException("La hora de cierre no es válida (formato HH:mm).");
+        if (closing <= opening)
+            throw new ArgumentException("La hora de cierre debe ser posterior a la de apertura.");
         if (dto.SlotMinutes < 5 || dto.SlotMinutes > 240)
             throw new ArgumentException("El intervalo de agenda debe estar entre 5 y 240 minutos.");
         if (dto.DefaultDurationMinutes < dto.SlotMinutes)
@@ -77,6 +104,24 @@ public class SettingsService : ISettingsService
         if (dto.MaxAdvanceDays < 1 || dto.MaxAdvanceDays > 730)
             throw new ArgumentException("Los días de antelación deben estar entre 1 y 730.");
         return SaveSectionAsync(AppSetting.Sections.Agenda, dto, ct);
+    }
+
+    public TimeZoneInfo GetAgendaTimeZone()
+    {
+        var id = _configuration["Agenda:TimeZoneId"];
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id.Trim());
+            }
+            catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+            {
+                return TimeZoneInfo.Utc;
+            }
+        }
+
+        return TimeZoneInfo.Local;
     }
 
     // ---------- Inventario ----------
@@ -197,7 +242,7 @@ public class SettingsService : ISettingsService
     }
 
     private ClinicSettingsDto DefaultClinic() => new(
-        "VetClinic", string.Empty, string.Empty, string.Empty, string.Empty, string.Empty,
+        "VetClinic", string.Empty, string.Empty, "RUC", string.Empty, string.Empty, string.Empty,
         null, "VetClinic - Servicios Veterinarios", "Gracias por su preferencia.");
 
     private BillingSettingsDto DefaultBilling() => new(
@@ -208,7 +253,10 @@ public class SettingsService : ISettingsService
         "08:00", "20:00", 30, 30, 90, new[] { "Sunday" });
 
     private static InventorySettingsDto DefaultInventory() => new(
-        30, Array.Empty<string>(), new[] { "unidad", "caja", "ml", "mg", "kg" }, 5);
+        30,
+        new[] { "Medicamentos", "Vacunas", "Antibióticos", "Insumos", "Alimentos" },
+        new[] { "unidad", "caja", "ml", "mg", "kg" },
+        5);
 
     private SecuritySettingsDto DefaultSecurity() => new(
         6, true, true, 4, ConfigSessionHours(), 5);

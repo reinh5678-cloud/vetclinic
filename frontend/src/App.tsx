@@ -17,7 +17,6 @@ import BillingPanel from './pages/settings/BillingPanel';
 import AgendaPanel from './pages/settings/AgendaPanel';
 import InventorySettingsPanel from './pages/settings/InventorySettingsPanel';
 import SecurityPanel from './pages/settings/SecurityPanel';
-import NotificationsPanel from './pages/settings/NotificationsPanel';
 import UsersPanel from './pages/settings/UsersPanel';
 import RolesPanel from './pages/settings/RolesPanel';
 import SystemPanel from './pages/settings/SystemPanel';
@@ -61,7 +60,6 @@ function Router() {
           <Route path="agenda" element={<AgendaPanel />} />
           <Route path="inventario" element={<InventorySettingsPanel />} />
           <Route path="seguridad" element={<SecurityPanel />} />
-          <Route path="notificaciones" element={<NotificationsPanel />} />
           <Route path="usuarios" element={<UsersPanel />} />
           <Route path="roles" element={<RolesPanel />} />
           <Route path="sistema" element={<SystemPanel />} />

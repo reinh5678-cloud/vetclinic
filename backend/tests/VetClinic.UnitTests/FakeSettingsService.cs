@@ -9,7 +9,7 @@ public class FakeSettingsService : ISettingsService
         new(0.16m, "MXN", "$", "FAC", new[] { "Efectivo", "Tarjeta", "Transferencia" }, string.Empty);
 
     public ClinicSettingsDto Clinic { get; set; } =
-        new("VetClinic", string.Empty, string.Empty, string.Empty, string.Empty, string.Empty,
+        new("VetClinic", string.Empty, string.Empty, "RUC", string.Empty, string.Empty, string.Empty,
             null, string.Empty, string.Empty);
 
     public AgendaSettingsDto Agenda { get; set; } =
@@ -44,6 +44,8 @@ public class FakeSettingsService : ISettingsService
         Agenda = dto;
         return Task.FromResult(dto);
     }
+
+    public TimeZoneInfo GetAgendaTimeZone() => TimeZoneInfo.Utc;
 
     public Task<InventorySettingsDto> GetInventoryAsync(CancellationToken ct = default) => Task.FromResult(Inventory);
     public Task<InventorySettingsDto> SaveInventoryAsync(InventorySettingsDto dto, CancellationToken ct = default)

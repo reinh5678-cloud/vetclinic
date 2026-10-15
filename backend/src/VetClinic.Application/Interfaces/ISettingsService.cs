@@ -13,6 +13,9 @@ public interface ISettingsService
     Task<AgendaSettingsDto> GetAgendaAsync(CancellationToken ct = default);
     Task<AgendaSettingsDto> SaveAgendaAsync(AgendaSettingsDto dto, CancellationToken ct = default);
 
+    /// <summary>Zona horaria de la clínica para interpretar las horas de la agenda.</summary>
+    TimeZoneInfo GetAgendaTimeZone();
+
     Task<InventorySettingsDto> GetInventoryAsync(CancellationToken ct = default);
     Task<InventorySettingsDto> SaveInventoryAsync(InventorySettingsDto dto, CancellationToken ct = default);
 
