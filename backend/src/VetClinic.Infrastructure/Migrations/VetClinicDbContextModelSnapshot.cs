@@ -324,6 +324,13 @@ namespace VetClinic.Infrastructure.Migrations
                     b.Property<int?>("CreatedById")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("PEN");
+
                     b.Property<string>("InvoiceNumber")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -560,6 +567,9 @@ namespace VetClinic.Infrastructure.Migrations
                     b.Property<int>("HospitalizationId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("InventoryItemId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("MedicationName")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -577,6 +587,8 @@ namespace VetClinic.Infrastructure.Migrations
                     b.HasIndex("AdministeredById");
 
                     b.HasIndex("HospitalizationId");
+
+                    b.HasIndex("InventoryItemId");
 
                     b.ToTable("MedicationAdministrations");
                 });
@@ -1173,9 +1185,16 @@ namespace VetClinic.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("VetClinic.Domain.Entities.InventoryItem", "InventoryItem")
+                        .WithMany()
+                        .HasForeignKey("InventoryItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("AdministeredBy");
 
                     b.Navigation("Hospitalization");
+
+                    b.Navigation("InventoryItem");
                 });
 
             modelBuilder.Entity("VetClinic.Domain.Entities.Pet", b =>

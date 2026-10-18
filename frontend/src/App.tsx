@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+﻿import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import RequireAuth, { RequirePermission } from './components/RequireAuth';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -9,7 +9,11 @@ import PatientsPage from './pages/PatientsPage';
 import AppointmentsPage from './pages/AppointmentsPage';
 import MedicalHistoryPage from './pages/MedicalHistoryPage';
 import HospitalizationsPage from './pages/HospitalizationsPage';
-import InventoryPage from './pages/InventoryPage';
+import InventoryIndex from './pages/inventory/InventoryIndex';
+import InventoryArticlesPage from './pages/inventory/InventoryArticlesPage';
+import LotsPage from './pages/inventory/LotsPage';
+import AdjustmentsPage from './pages/inventory/AdjustmentsPage';
+import KardexPage from './pages/inventory/KardexPage';
 import InvoicesPage from './pages/InvoicesPage';
 import SettingsPage from './pages/SettingsPage';
 import ClinicPanel from './pages/settings/ClinicPanel';
@@ -39,7 +43,7 @@ function Router() {
   ) : (
     <div className="card card-pad text-center">
       <h2 className="page-title">Sin acceso</h2>
-      <p className="mt-2 text-sm text-slate-500">Tu usuario no tiene permisos para ver ninguna sección. Contactá al administrador.</p>
+      <p className="mt-2 text-sm text-slate-500">Tu usuario no tiene permisos para ver ninguna secciÃ³n. ContactÃ¡ al administrador.</p>
     </div>
   );
   return (
@@ -51,7 +55,12 @@ function Router() {
         <Route path="/agenda" element={<RequirePermission permission="appointments.view"><AppointmentsPage /></RequirePermission>} />
         <Route path="/historia" element={<RequirePermission permission="medical.view"><MedicalHistoryPage /></RequirePermission>} />
         <Route path="/hospitalizacion" element={<RequirePermission permission="hospitalization.view"><HospitalizationsPage /></RequirePermission>} />
-        <Route path="/inventario" element={<RequirePermission permission="inventory.view"><InventoryPage /></RequirePermission>} />
+                <Route path="/inventario" element={<RequirePermission permission="inventory.view"><InventoryIndex /></RequirePermission>}>
+          <Route index element={<InventoryArticlesPage />} />
+          <Route path="lotes" element={<LotsPage />} />
+          <Route path="ajustes" element={<AdjustmentsPage />} />
+          <Route path="kardex" element={<KardexPage />} />
+        </Route>
         <Route path="/facturacion" element={<RequirePermission permission="invoices.view"><InvoicesPage /></RequirePermission>} />
         <Route path="/configuracion" element={user?.role === 'Administrador' ? <SettingsPage /> : <Navigate to="/" replace />}>
           <Route index element={<Navigate to="clinica" replace />} />
@@ -81,3 +90,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

@@ -1,4 +1,4 @@
-import { api } from './client';
+﻿import { api } from './client';
 
 export interface InventoryItem {
   id: number;
@@ -31,14 +31,24 @@ export type StockMovementType =
   | 'SalidaUsoInterno'
   | 'Ajuste';
 
-export interface StockMovement {
+export interface KardexEntry {
   id: number;
+  inventoryItemId: number;
+  itemName: string;
+  itemCode: string;
   type: StockMovementType;
   quantity: number;
   description: string;
   movementDate: string;
   lotNumber: string | null;
   performedByName: string | null;
+}
+
+export interface KardexFilters {
+  itemId?: number;
+  type?: StockMovementType;
+  from?: string;
+  to?: string;
 }
 
 export interface ExpiringLot {
@@ -129,8 +139,15 @@ export const deactivateLot = (lotId: number) =>
 export const reactivateLot = (lotId: number) =>
   api<void>(`/inventory/lots/${lotId}/activate`, { method: 'PATCH' });
 
-export const listMovements = (id: number) =>
-  api<StockMovement[]>(`/inventory/${id}/movements`);
+export const listKardex = (filters: KardexFilters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.itemId) params.set('itemId', String(filters.itemId));
+  if (filters.type) params.set('type', filters.type);
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  const qs = params.toString();
+  return api<KardexEntry[]>(`/inventory/movements${qs ? `?${qs}` : ''}`);
+};
 
 export const listExpiringLots = (days = 30) =>
   api<ExpiringLot[]>(`/inventory/lots/expiring?days=${days}`);

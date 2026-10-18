@@ -11,6 +11,7 @@ public class Invoice : BaseEntity
     public decimal Subtotal { get; set; }
     public decimal Taxes { get; set; }
     public decimal Total { get; set; }
+    public string Currency { get; set; } = InvoiceCurrencies.Default;
     public string PaymentMethod { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
     public int? TutorId { get; set; }

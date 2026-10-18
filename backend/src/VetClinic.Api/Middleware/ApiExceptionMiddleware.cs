@@ -35,6 +35,7 @@ public class ApiExceptionMiddleware
                 InvalidOperationException => (StatusCodes.Status409Conflict, ex.Message),
                 KeyNotFoundException => (StatusCodes.Status404NotFound, ex.Message),
                 DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "El registro fue modificado por otra operación. Recargá los datos e intentá de nuevo."),
+                DbUpdateException { InnerException: ArgumentException inner } => (StatusCodes.Status400BadRequest, inner.Message),
                 DbUpdateException => (StatusCodes.Status409Conflict, "No se pudo guardar la información: registro duplicado o inválido."),
                 _ => (StatusCodes.Status500InternalServerError, "Error interno del servidor.")
             };

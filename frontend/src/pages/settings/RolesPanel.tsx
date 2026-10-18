@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
+import Modal from '../../components/Modal';
 import PermissionPicker, { type Permission } from './PermissionPicker';
 
 interface RoleDetail {
@@ -20,7 +21,7 @@ export default function RolesPanel() {
   const [roles, setRoles] = useState<RoleDetail[]>([]);
   const [catalog, setCatalog] = useState<Permission[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [details, setDetails] = useState<RoleDetail | null>(null);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
@@ -47,14 +48,12 @@ export default function RolesPanel() {
   const startCreate = () => {
     setErr('');
     setMsg('');
-    setExpanded(null);
     setDraft({ id: null, name: '', permissions: [] });
   };
 
   const startEdit = (role: RoleDetail) => {
     setErr('');
     setMsg('');
-    setExpanded(null);
     setDraft({ id: role.id, name: role.name, permissions: [...role.permissions] });
   };
 
@@ -92,7 +91,7 @@ export default function RolesPanel() {
 
   return (
     <section className="card">
-      {err && <div className="alert alert-error m-4">{err}</div>}
+      {err && !draft && <div className="alert alert-error m-4">{err}</div>}
       {msg && <div className="alert alert-success m-4">{msg}</div>}
 
       <div className="card-header">
@@ -100,45 +99,10 @@ export default function RolesPanel() {
           <h3 className="section-title">Roles</h3>
           <p className="mt-0.5 text-xs text-slate-500">Definen los permisos de los usuarios. El rol Administrador es del sistema.</p>
         </div>
-        <button
-          onClick={() => (draft && draft.id === null ? setDraft(null) : startCreate())}
-          className={draft && draft.id === null ? 'btn btn-secondary btn-sm' : 'btn btn-primary btn-sm'}
-          disabled={draft !== null && draft.id !== null}
-        >
-          {draft && draft.id === null ? 'Cancelar' : 'Nuevo rol'}
-        </button>
+        <button onClick={startCreate} className="btn btn-primary btn-sm">Nuevo rol</button>
       </div>
 
-      <div className="card-body space-y-4">
-        {draft && (
-          <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="field sm:max-w-xs">
-                <label className="label">Nombre del rol</label>
-                <input
-                  required
-                  maxLength={50}
-                  placeholder="Ej.: Peluquería"
-                  value={draft.name}
-                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                  className="input"
-                />
-              </div>
-              <p className="text-xs text-slate-500 sm:pb-2">
-                {draft.id === null ? 'Creando un rol nuevo.' : `Editando «${draft.name || 'rol'}».`}
-              </p>
-            </div>
-
-            <PermissionPicker catalog={catalog} selected={draft.permissions} onToggle={toggle} />
-
-            <div className="flex items-center gap-3">
-              <button onClick={save} className="btn btn-primary">{draft.id === null ? 'Crear rol' : 'Guardar cambios'}</button>
-              <button onClick={() => setDraft(null)} className="btn btn-secondary">Cancelar</button>
-              <span className="text-xs text-slate-500">{draft.permissions.length} permiso(s) seleccionado(s)</span>
-            </div>
-          </div>
-        )}
-
+      <div className="card-body">
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -151,54 +115,75 @@ export default function RolesPanel() {
             </thead>
             <tbody>
               {roles.map((role) => (
-                <Fragment key={role.id}>
-                  <tr>
-                    <td className="font-medium text-slate-800">
-                      {role.name}
-                      {role.isSystem && <span className="ml-2 badge badge-info">Sistema</span>}
-                    </td>
-                    <td>{role.userCount}</td>
-                    <td>{role.permissions.length}</td>
-                    <td>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setExpanded(expanded === role.id ? null : role.id)}
-                          className="btn btn-ghost btn-xs"
-                        >
-                          {expanded === role.id ? 'Ocultar' : 'Detalles'}
-                        </button>
-                        <button
-                          onClick={() => startEdit(role)}
-                          className="btn btn-secondary btn-xs"
-                          disabled={role.isSystem}
-                          title={role.isSystem ? 'El rol del sistema no puede modificarse' : undefined}
-                        >
-                          Editar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  {expanded === role.id && (
-                    <tr>
-                      <td colSpan={4} className="bg-slate-50/70">
-                        {role.permissions.length === 0 ? (
-                          <p className="text-xs text-slate-500">Este rol no tiene permisos asignados.</p>
-                        ) : (
-                          <ul className="flex flex-wrap gap-1.5">
-                            {role.permissions.map((code) => (
-                              <li key={code} className="badge badge-neutral">{labels[code] ?? code}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                <tr key={role.id}>
+                  <td className="font-medium text-slate-800">
+                    {role.name}
+                    {role.isSystem && <span className="ml-2 badge badge-info">Sistema</span>}
+                  </td>
+                  <td>{role.userCount}</td>
+                  <td>{role.permissions.length}</td>
+                  <td>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setDetails(role)} className="btn btn-ghost btn-xs">Detalles</button>
+                      <button
+                        onClick={() => startEdit(role)}
+                        className="btn btn-secondary btn-xs"
+                        disabled={role.isSystem}
+                        title={role.isSystem ? 'El rol del sistema no puede modificarse' : undefined}
+                      >
+                        Editar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {draft && (
+        <Modal title={draft.id === null ? 'Nuevo rol' : 'Editar rol'} onClose={() => setDraft(null)} wide>
+          <div className="space-y-4">
+            {err && <div className="alert alert-error">{err}</div>}
+            <div className="field">
+              <label className="label">Nombre del rol</label>
+              <input
+                required
+                maxLength={50}
+                placeholder="Ej.: Peluquería"
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                className="input"
+              />
+            </div>
+
+            <PermissionPicker catalog={catalog} selected={draft.permissions} onToggle={toggle} />
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-slate-500">{draft.permissions.length} permiso(s) seleccionado(s)</span>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setDraft(null)} className="btn btn-secondary">Cancelar</button>
+                <button type="button" onClick={save} className="btn btn-primary">{draft.id === null ? 'Crear rol' : 'Guardar cambios'}</button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {details && (
+        <Modal title={`Permisos · ${details.name}`} onClose={() => setDetails(null)}>
+          {details.permissions.length === 0 ? (
+            <p className="text-sm text-slate-500">Este rol no tiene permisos asignados.</p>
+          ) : (
+            <ul className="flex flex-wrap gap-1.5">
+              {details.permissions.map((code) => (
+                <li key={code} className="badge badge-neutral">{labels[code] ?? code}</li>
+              ))}
+            </ul>
+          )}
+        </Modal>
+      )}
     </section>
   );
 }

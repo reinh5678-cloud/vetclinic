@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import Modal from '../../components/Modal';
 
 export interface ExtraColumn {
   header: string;
@@ -31,6 +32,7 @@ function pageNumbers(current: number, total: number): (number | '…')[] {
 }
 
 export default function StringListTable({ title, items, onChange, placeholder, addLabel = 'Agregar', emptyText = 'Sin elementos.', pageSize = 10, extraColumns = [] }: Props) {
+  const [showAdd, setShowAdd] = useState(false);
   const [draft, setDraft] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState('');
@@ -45,6 +47,12 @@ export default function StringListTable({ title, items, onChange, placeholder, a
   const exists = (name: string, ignoreIndex = -1) =>
     items.some((it, i) => i !== ignoreIndex && it.toLowerCase() === name.toLowerCase());
 
+  const closeAdd = () => {
+    setShowAdd(false);
+    setDraft('');
+    setError('');
+  };
+
   const add = () => {
     const name = draft.trim();
     if (!name) return;
@@ -53,9 +61,8 @@ export default function StringListTable({ title, items, onChange, placeholder, a
       return;
     }
     onChange([...items, name]);
-    setDraft('');
-    setError('');
     setPage(Math.ceil((items.length + 1) / pageSize));
+    closeAdd();
   };
 
   const startEdit = (index: number) => {
@@ -86,6 +93,7 @@ export default function StringListTable({ title, items, onChange, placeholder, a
   };
 
   const remove = (index: number) => {
+    if (!window.confirm(`¿Eliminar «${items[index]}»?`)) return;
     onChange(items.filter((_, i) => i !== index));
     if (editingIndex === index) cancelEdit();
   };
@@ -94,31 +102,13 @@ export default function StringListTable({ title, items, onChange, placeholder, a
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="section-title">{title}</h4>
-        <span className="badge badge-neutral">{items.length}</span>
+        <div className="flex items-center gap-2">
+          <span className="badge badge-neutral">{items.length}</span>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setError(''); setShowAdd(true); }}>
+            + {addLabel}
+          </button>
+        </div>
       </div>
-
-      <div className="flex gap-2">
-        <input
-          className="input"
-          placeholder={placeholder}
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setError('');
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              add();
-            }
-          }}
-        />
-        <button type="button" className="btn btn-primary btn-sm" onClick={add}>
-          + {addLabel}
-        </button>
-      </div>
-
-      {error && <p className="text-xs text-rose-600">{error}</p>}
 
       {items.length === 0 ? (
         <p className="text-sm text-slate-400">{emptyText}</p>
@@ -140,56 +130,22 @@ export default function StringListTable({ title, items, onChange, placeholder, a
                   const index = start + offset;
                   return (
                     <tr key={`${item}-${index}`}>
-                      <td>
-                        {editingIndex === index ? (
-                          <input
-                            className="input py-1"
-                            value={editingValue}
-                            autoFocus
-                            onChange={(e) => {
-                              setEditingValue(e.target.value);
-                              setError('');
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                saveEdit();
-                              }
-                              if (e.key === 'Escape') cancelEdit();
-                            }}
-                          />
-                        ) : (
-                          <span className="text-slate-800">{item}</span>
-                        )}
-                      </td>
+                      <td><span className="text-slate-800">{item}</span></td>
                       {extraColumns.map((col) => (
                         <td key={col.header}>{col.cell(item, index)}</td>
                       ))}
                       <td>
                         <div className="flex gap-2">
-                          {editingIndex === index ? (
-                            <>
-                              <button type="button" className="btn btn-primary btn-xs" onClick={saveEdit}>
-                                Guardar
-                              </button>
-                              <button type="button" className="btn btn-secondary btn-xs" onClick={cancelEdit}>
-                                Cancelar
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button type="button" className="btn btn-ghost btn-xs" onClick={() => startEdit(index)}>
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50"
-                                onClick={() => remove(index)}
-                              >
-                                Eliminar
-                              </button>
-                            </>
-                          )}
+                          <button type="button" className="btn btn-ghost btn-xs" onClick={() => startEdit(index)}>
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50"
+                            onClick={() => remove(index)}
+                          >
+                            Eliminar
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -241,6 +197,56 @@ export default function StringListTable({ title, items, onChange, placeholder, a
             </div>
           )}
         </>
+      )}
+
+      {showAdd && (
+        <Modal title={addLabel} onClose={closeAdd}>
+          <div className="space-y-3">
+            {error && <p className="text-sm text-rose-600">{error}</p>}
+            <input
+              className="input"
+              autoFocus
+              placeholder={placeholder}
+              value={draft}
+              onChange={(e) => { setDraft(e.target.value); setError(''); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  add();
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn btn-secondary" onClick={closeAdd}>Cancelar</button>
+              <button type="button" className="btn btn-primary" onClick={add}>Agregar</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {editingIndex !== null && (
+        <Modal title="Editar" onClose={cancelEdit}>
+          <div className="space-y-3">
+            {error && <p className="text-sm text-rose-600">{error}</p>}
+            <input
+              className="input"
+              autoFocus
+              value={editingValue}
+              onChange={(e) => { setEditingValue(e.target.value); setError(''); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  saveEdit();
+                }
+                if (e.key === 'Escape') cancelEdit();
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn btn-secondary" onClick={cancelEdit}>Cancelar</button>
+              <button type="button" className="btn btn-primary" onClick={saveEdit}>Guardar</button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

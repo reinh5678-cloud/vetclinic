@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, getToken } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import Modal from '../components/Modal';
+import PatientDetail from './patients/PatientDetail';
 import {
   addLabResult,
   addPrescription,
@@ -23,8 +25,8 @@ import {
   type PrescriptionInput,
 } from '../api/medicalRecords';
 import type { InventoryItem } from '../api/inventory';
+import type { Pet } from '../api/patients';
 
-interface Pet { id: number; name: string; species: string; breed: string; }
 interface VaccineApplication { id: number; vaccineName: string | null; applicationDate: string; nextDueDate: string | null; isDueSoon: boolean; }
 
 export default function MedicalHistoryPage() {
@@ -42,8 +44,12 @@ export default function MedicalHistoryPage() {
     return value ? Number(value) : null;
   });
   const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [showNewRecord, setShowNewRecord] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+
+  const selectedPet = petId ? pets.find((p) => p.id === petId) ?? null : null;
 
   const loadRecords = (id: number) =>
     listRecordsByPet(id).then(setRecords).catch((e) => setErr((e as Error).message));
@@ -80,6 +86,7 @@ export default function MedicalHistoryPage() {
       form.reset();
       setAppointmentId(null);
       setSearchParams(petId ? { petId: String(petId) } : {}, { replace: true });
+      setShowNewRecord(false);
       setMsg('Historia clínica registrada.');
       await loadRecords(petId);
     } catch (ex) {
@@ -116,6 +123,31 @@ export default function MedicalHistoryPage() {
 
       {petId && (
         <>
+          {selectedPet && (
+            <div className="card card-pad space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="section-title">Paciente: {selectedPet.name}</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {selectedPet.species}{selectedPet.breed ? ` · ${selectedPet.breed}` : ''}
+                  </p>
+                </div>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowDetail(true)}>
+                  Ver ficha
+                </button>
+              </div>
+              <dl className="grid gap-3 sm:grid-cols-3">
+                <div><dt className="text-xs font-medium text-slate-500">Sexo</dt><dd className="text-sm text-slate-700">{selectedPet.sex}</dd></div>
+                <div><dt className="text-xs font-medium text-slate-500">Edad</dt><dd className="text-sm text-slate-700">{selectedPet.ageYears != null ? `${selectedPet.ageYears} años` : '—'}</dd></div>
+                <div><dt className="text-xs font-medium text-slate-500">Peso</dt><dd className="text-sm text-slate-700">{selectedPet.weightKg} kg</dd></div>
+                <div><dt className="text-xs font-medium text-slate-500">Color</dt><dd className="text-sm text-slate-700">{selectedPet.color || '—'}</dd></div>
+                <div><dt className="text-xs font-medium text-slate-500">Esterilizado</dt><dd className="text-sm text-slate-700">{selectedPet.isSterilized ? 'Sí' : 'No'}</dd></div>
+                <div><dt className="text-xs font-medium text-slate-500">Tutor</dt><dd className="text-sm text-slate-700">{selectedPet.tutorName ?? 'Sin asignar'}</dd></div>
+                <div><dt className="text-xs font-medium text-slate-500">Teléfono del tutor</dt><dd className="text-sm text-slate-700">{selectedPet.tutorPhone || '—'}</dd></div>
+              </dl>
+            </div>
+          )}
+
           <VaccinesSection petId={petId} />
 
           {appointmentId && (
@@ -125,24 +157,21 @@ export default function MedicalHistoryPage() {
           )}
 
           {canManage && (
-            <form onSubmit={addRecord} className="card card-pad space-y-3">
-              <h3 className="section-title">Nueva consulta</h3>
-              <input name="symptoms" placeholder="Síntomas *" className="input" required />
-              <input name="findings" placeholder="Hallazgos" className="input" />
-              <input name="diagnosis" placeholder="Diagnóstico" className="input" />
-              <input name="treatmentPlan" placeholder="Plan de tratamiento" className="input" />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input type="number" step="0.1" min="0" max="300" name="weightKg" placeholder="Peso (kg)" className="input" />
-                <input type="number" step="0.1" min="0" max="60" name="temperatureC" placeholder="Temperatura (°C)" className="input" />
-              </div>
-              <button type="submit" className="btn btn-primary">Guardar consulta</button>
-            </form>
+            <div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => { setErr(''); setMsg(''); setShowNewRecord(true); }}
+              >
+                Nueva consulta
+              </button>
+            </div>
           )}
         </>
       )}
 
       {msg && <div className="alert alert-success">{msg}</div>}
-      {err && <div className="alert alert-danger">{err}</div>}
+      {err && !showNewRecord && <div className="alert alert-danger">{err}</div>}
 
       {records.map((r) => (
         <RecordCard
@@ -153,6 +182,32 @@ export default function MedicalHistoryPage() {
           onDeleted={removeFromList}
         />
       ))}
+
+      {showNewRecord && petId && (
+        <Modal title="Nueva consulta" onClose={() => setShowNewRecord(false)} wide>
+          <form onSubmit={addRecord} className="space-y-3">
+            {err && <div className="alert alert-danger">{err}</div>}
+            <input name="symptoms" placeholder="Síntomas *" className="input" required />
+            <input name="findings" placeholder="Hallazgos" className="input" />
+            <input name="diagnosis" placeholder="Diagnóstico" className="input" />
+            <input name="treatmentPlan" placeholder="Plan de tratamiento" className="input" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input type="number" step="0.1" min="0" max="300" name="weightKg" placeholder="Peso (kg)" className="input" />
+              <input type="number" step="0.1" min="0" max="60" name="temperatureC" placeholder="Temperatura (°C)" className="input" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowNewRecord(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">Guardar consulta</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {showDetail && selectedPet && (
+        <Modal title={`Ficha · ${selectedPet.name}`} onClose={() => setShowDetail(false)} wide>
+          <PatientDetail pet={selectedPet} />
+        </Modal>
+      )}
     </div>
   );
 }
@@ -163,6 +218,7 @@ function VaccinesSection({ petId }: { petId: number }) {
   const [inventoryItemId, setInventoryItemId] = useState('');
   const [applicationDate, setApplicationDate] = useState(new Date().toISOString().slice(0, 10));
   const [nextDueDate, setNextDueDate] = useState('');
+  const [showRegister, setShowRegister] = useState(false);
   const [msg, setMsg] = useState('');
 
   const reload = () => {
@@ -193,13 +249,17 @@ function VaccinesSection({ petId }: { petId: number }) {
       }),
     });
     setInventoryItemId(''); setNextDueDate('');
+    setShowRegister(false);
     setMsg('Vacuna registrada.');
     reload();
   };
 
   return (
     <div className="card card-pad space-y-4">
-      <h3 className="section-title">Vacunas</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="section-title">Vacunas</h3>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowRegister(true)}>Registrar vacuna</button>
+      </div>
 
       {dueSoon.length > 0 && (
         <div className="alert alert-warning">
@@ -240,26 +300,35 @@ function VaccinesSection({ petId }: { petId: number }) {
           </table>
         </div>
       )}
-
-      <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-        <div className="field min-w-44">
-          <label className="label">Vacuna</label>
-          <select value={inventoryItemId} onChange={(e) => setInventoryItemId(e.target.value)} className="select" required>
-            <option value="">-- Vacuna --</option>
-            {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label className="label">Aplicación</label>
-          <input type="date" value={applicationDate} onChange={(e) => setApplicationDate(e.target.value)} className="input" required />
-        </div>
-        <div className="field">
-          <label className="label">Próxima dosis</label>
-          <input type="date" value={nextDueDate} onChange={(e) => setNextDueDate(e.target.value)} className="input" />
-        </div>
-        <button type="submit" className="btn btn-primary">Registrar vacuna</button>
-      </form>
       {msg && <div className="alert alert-success">{msg}</div>}
+
+      {showRegister && (
+        <Modal title="Registrar vacuna" onClose={() => setShowRegister(false)}>
+          <form onSubmit={submit} className="space-y-3">
+            <div className="field">
+              <label className="label">Vacuna</label>
+              <select value={inventoryItemId} onChange={(e) => setInventoryItemId(e.target.value)} className="select" required>
+                <option value="">-- Vacuna --</option>
+                {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+              </select>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="field">
+                <label className="label">Aplicación</label>
+                <input type="date" value={applicationDate} onChange={(e) => setApplicationDate(e.target.value)} className="input" required />
+              </div>
+              <div className="field">
+                <label className="label">Próxima dosis</label>
+                <input type="date" value={nextDueDate} onChange={(e) => setNextDueDate(e.target.value)} className="input" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowRegister(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">Registrar vacuna</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -285,15 +354,15 @@ function PrescriptionForm({
     });
   };
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+    <form onSubmit={submit} className="space-y-3">
       <input name="medicationName" defaultValue={initial?.medicationName} placeholder="Medicamento *" className="input" required />
       <input name="dosage" defaultValue={initial?.dosage} placeholder="Dosis" className="input" />
       <input name="frequency" defaultValue={initial?.frequency} placeholder="Frecuencia (ej: cada 12h)" className="input" />
       <input name="duration" defaultValue={initial?.duration} placeholder="Duración (ej: 7 días)" className="input" />
       <input name="instructions" defaultValue={initial?.instructions} placeholder="Instrucciones" className="input" />
-      <div className="flex gap-2">
-        <button type="submit" className="btn btn-primary btn-sm">Guardar receta</button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Cancelar</button>
+      <div className="flex justify-end gap-2 pt-2">
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+        <button type="submit" className="btn btn-primary">Guardar receta</button>
       </div>
     </form>
   );
@@ -319,16 +388,16 @@ function LabResultForm({
     });
   };
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+    <form onSubmit={submit} className="space-y-3">
       <input name="testType" defaultValue={initial?.testType} placeholder="Tipo de prueba (ej: Hemograma) *" className="input" required />
       <input name="result" defaultValue={initial?.result} placeholder="Resultado (ej: GB 18.2)" className="input" />
       <input name="referenceRange" defaultValue={initial?.referenceRange} placeholder="Rango de referencia" className="input" />
       <label className="flex items-center gap-2 text-sm text-slate-600">
         <input type="checkbox" name="isAbnormal" defaultChecked={initial?.isAbnormal} className="checkbox" /> Marcado como anormal
       </label>
-      <div className="flex gap-2">
-        <button type="submit" className="btn btn-primary btn-sm">Guardar análisis</button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Cancelar</button>
+      <div className="flex justify-end gap-2 pt-2">
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+        <button type="submit" className="btn btn-primary">Guardar análisis</button>
       </div>
     </form>
   );
@@ -457,6 +526,9 @@ function RecordCard({
     }
   };
 
+  const editingRx = editingRxId !== null ? record.prescriptions.find((p) => p.id === editingRxId) ?? null : null;
+  const editingLab = editingLabId !== null ? record.labResults.find((l) => l.id === editingLabId) ?? null : null;
+
   return (
     <div className="card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-100 bg-teal-50 px-5 py-3">
@@ -467,9 +539,7 @@ function RecordCard({
           </span>
           {canManage && (
             <>
-              <button type="button" className="btn btn-secondary btn-xs" onClick={() => setEditing(!editing)}>
-                {editing ? 'Cancelar' : 'Editar'}
-              </button>
+              <button type="button" className="btn btn-secondary btn-xs" onClick={() => setEditing(true)}>Editar</button>
               <button type="button" className="btn btn-danger btn-xs" onClick={removeRecord}>Eliminar</button>
             </>
           )}
@@ -479,62 +549,30 @@ function RecordCard({
       <div className="space-y-3 p-5">
         {err && <div className="alert alert-danger">{err}</div>}
 
-        {editing ? (
-          <form onSubmit={submitEdit} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <input name="symptoms" defaultValue={record.symptoms} placeholder="Síntomas *" className="input" required />
-            <input name="findings" defaultValue={record.findings} placeholder="Hallazgos" className="input" />
-            <input name="diagnosis" defaultValue={record.diagnosis} placeholder="Diagnóstico" className="input" />
-            <input name="treatmentPlan" defaultValue={record.treatmentPlan} placeholder="Plan de tratamiento" className="input" />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input type="number" step="0.1" min="0" max="300" name="weightKg" defaultValue={record.weightKg ?? ''} placeholder="Peso (kg)" className="input" />
-              <input type="number" step="0.1" min="0" max="60" name="temperatureC" defaultValue={record.temperatureC ?? ''} placeholder="Temperatura (°C)" className="input" />
-            </div>
-            <button type="submit" className="btn btn-primary btn-sm">Guardar cambios</button>
-          </form>
-        ) : (
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <div><dt className="text-xs font-medium text-slate-500">Síntomas</dt><dd className="text-sm text-slate-700">{record.symptoms || '—'}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">Hallazgos</dt><dd className="text-sm text-slate-700">{record.findings || '—'}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">Diagnóstico</dt><dd className="text-sm text-slate-700">{record.diagnosis || '—'}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">Tratamiento</dt><dd className="text-sm text-slate-700">{record.treatmentPlan || '—'}</dd></div>
-            <div className="sm:col-span-2 flex flex-wrap gap-2">
-              <span className="badge badge-neutral">Peso: {record.weightKg != null ? `${record.weightKg} kg` : '—'}</span>
-              <span className="badge badge-neutral">Temperatura: {record.temperatureC != null ? `${record.temperatureC} °C` : '—'}</span>
-            </div>
-          </dl>
-        )}
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <div><dt className="text-xs font-medium text-slate-500">Síntomas</dt><dd className="text-sm text-slate-700">{record.symptoms || '—'}</dd></div>
+          <div><dt className="text-xs font-medium text-slate-500">Hallazgos</dt><dd className="text-sm text-slate-700">{record.findings || '—'}</dd></div>
+          <div><dt className="text-xs font-medium text-slate-500">Diagnóstico</dt><dd className="text-sm text-slate-700">{record.diagnosis || '—'}</dd></div>
+          <div><dt className="text-xs font-medium text-slate-500">Tratamiento</dt><dd className="text-sm text-slate-700">{record.treatmentPlan || '—'}</dd></div>
+          <div className="sm:col-span-2 flex flex-wrap gap-2">
+            <span className="badge badge-neutral">Peso: {record.weightKg != null ? `${record.weightKg} kg` : '—'}</span>
+            <span className="badge badge-neutral">Temperatura: {record.temperatureC != null ? `${record.temperatureC} °C` : '—'}</span>
+          </div>
+        </dl>
 
         {canManage && (
           <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-            <button className="btn btn-secondary btn-sm" onClick={() => setShowRx(!showRx)}>{showRx ? 'Cancelar' : '+ Receta'}</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setShowLab(!showLab)}>{showLab ? 'Cancelar' : '+ Análisis de laboratorio'}</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setShowAtt(!showAtt)}>{showAtt ? 'Cancelar' : '+ Adjunto'}</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowRx(true)}>+ Receta</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowLab(true)}>+ Análisis de laboratorio</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowAtt(true)}>+ Adjunto</button>
           </div>
-        )}
-
-        {showRx && <PrescriptionForm onSubmit={submitRx} onCancel={() => setShowRx(false)} />}
-        {showLab && <LabResultForm onSubmit={submitLab} onCancel={() => setShowLab(false)} />}
-
-        {showAtt && (
-          <form onSubmit={submitAtt} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <input type="file" name="file" className="input" required />
-            <p className="text-[13px] text-slate-500">Adjunta rayos X, ecografías u otros documentos (máx. 20 MB; imágenes, PDF o documentos de oficina).</p>
-            <button type="submit" className="btn btn-primary btn-sm">Subir archivo</button>
-          </form>
         )}
 
         <div className="grid gap-5 border-t border-slate-100 pt-3 lg:grid-cols-3">
           <section>
             <h4 className="mb-2 text-sm font-semibold text-slate-700">Recetas ({record.prescriptions.length})</h4>
             <div className="space-y-2">
-              {record.prescriptions.map((rx) => editingRxId === rx.id ? (
-                <PrescriptionForm
-                  key={rx.id}
-                  initial={{ medicationName: rx.medicationName, dosage: rx.dosage, frequency: rx.frequency, duration: rx.duration, instructions: rx.instructions }}
-                  onSubmit={(input) => saveRx(rx.id, input)}
-                  onCancel={() => setEditingRxId(null)}
-                />
-              ) : (
+              {record.prescriptions.map((rx) => (
                 <div key={rx.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -557,14 +595,7 @@ function RecordCard({
           <section>
             <h4 className="mb-2 text-sm font-semibold text-slate-700">Laboratorio ({record.labResults.length})</h4>
             <div className="space-y-2">
-              {record.labResults.map((l) => editingLabId === l.id ? (
-                <LabResultForm
-                  key={l.id}
-                  initial={{ testType: l.testType, result: l.result, referenceRange: l.referenceRange, isAbnormal: l.isAbnormal }}
-                  onSubmit={(input) => saveLab(l.id, input)}
-                  onCancel={() => setEditingLabId(null)}
-                />
-              ) : (
+              {record.labResults.map((l) => (
                 <div key={l.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -588,11 +619,11 @@ function RecordCard({
             <h4 className="mb-2 text-sm font-semibold text-slate-700">Adjuntos ({record.attachments.length})</h4>
             <div className="space-y-2">
               {record.attachments.map((a) => (
-                <div key={a.id} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                <div key={a.id} className="group flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                   <svg className="h-4 w-4 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
                   </svg>
-                  <span className="min-w-0 flex-1 truncate text-slate-700">{a.fileName}</span>
+                  <span className="cell-expand min-w-0 flex-1 text-slate-700">{a.fileName}</span>
                   <span className="text-[13px] text-slate-500">{(a.sizeBytes / 1024).toFixed(1)} KB</span>
                   <button type="button" className="btn btn-secondary btn-xs" onClick={() => openAttachment(a)}>
                     {a.contentType.startsWith('image/') ? 'Ver' : 'Descargar'}
@@ -607,6 +638,70 @@ function RecordCard({
           </section>
         </div>
       </div>
+
+      {editing && (
+        <Modal title={`Editar consulta #${record.id}`} onClose={() => setEditing(false)} wide>
+          <form onSubmit={submitEdit} className="space-y-3">
+            <input name="symptoms" defaultValue={record.symptoms} placeholder="Síntomas *" className="input" required />
+            <input name="findings" defaultValue={record.findings} placeholder="Hallazgos" className="input" />
+            <input name="diagnosis" defaultValue={record.diagnosis} placeholder="Diagnóstico" className="input" />
+            <input name="treatmentPlan" defaultValue={record.treatmentPlan} placeholder="Plan de tratamiento" className="input" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input type="number" step="0.1" min="0" max="300" name="weightKg" defaultValue={record.weightKg ?? ''} placeholder="Peso (kg)" className="input" />
+              <input type="number" step="0.1" min="0" max="60" name="temperatureC" defaultValue={record.temperatureC ?? ''} placeholder="Temperatura (°C)" className="input" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">Guardar cambios</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {showRx && (
+        <Modal title="Nueva receta" onClose={() => setShowRx(false)}>
+          <PrescriptionForm onSubmit={submitRx} onCancel={() => setShowRx(false)} />
+        </Modal>
+      )}
+
+      {editingRx && (
+        <Modal title="Editar receta" onClose={() => setEditingRxId(null)}>
+          <PrescriptionForm
+            initial={{ medicationName: editingRx.medicationName, dosage: editingRx.dosage, frequency: editingRx.frequency, duration: editingRx.duration, instructions: editingRx.instructions }}
+            onSubmit={(input) => saveRx(editingRx.id, input)}
+            onCancel={() => setEditingRxId(null)}
+          />
+        </Modal>
+      )}
+
+      {showLab && (
+        <Modal title="Nuevo análisis de laboratorio" onClose={() => setShowLab(false)}>
+          <LabResultForm onSubmit={submitLab} onCancel={() => setShowLab(false)} />
+        </Modal>
+      )}
+
+      {editingLab && (
+        <Modal title="Editar análisis" onClose={() => setEditingLabId(null)}>
+          <LabResultForm
+            initial={{ testType: editingLab.testType, result: editingLab.result, referenceRange: editingLab.referenceRange, isAbnormal: editingLab.isAbnormal }}
+            onSubmit={(input) => saveLab(editingLab.id, input)}
+            onCancel={() => setEditingLabId(null)}
+          />
+        </Modal>
+      )}
+
+      {showAtt && (
+        <Modal title="Adjuntar archivo" onClose={() => setShowAtt(false)}>
+          <form onSubmit={submitAtt} className="space-y-3">
+            <input type="file" name="file" className="input" required />
+            <p className="text-[13px] text-slate-500">Adjunta rayos X, ecografías u otros documentos (máx. 20 MB; imágenes, PDF o documentos de oficina).</p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowAtt(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">Subir archivo</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

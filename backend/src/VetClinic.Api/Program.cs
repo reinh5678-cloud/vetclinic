@@ -7,6 +7,7 @@ using VetClinic.Domain;
 using VetClinic.Infrastructure;
 using VetClinic.Infrastructure.Data;
 using VetClinic.Api.Middleware;
+using VetClinic.Api.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +15,10 @@ builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, relo
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
-        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        UtcDatesJson.AddTo(options.JsonSerializerOptions);
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

@@ -7,6 +7,8 @@ import {
   type TutorInput,
   type TutorList,
 } from '../../api/patients';
+import Modal from '../../components/Modal';
+import Pagination from '../../components/Pagination';
 
 interface FormState {
   firstName: string;
@@ -18,6 +20,8 @@ interface FormState {
 }
 
 const emptyForm: FormState = { firstName: '', lastName: '', email: '', phone: '', address: '', documentNumber: '' };
+
+const PAGE_SIZE = 10;
 
 function toInput(f: FormState): TutorInput {
   return {
@@ -36,6 +40,7 @@ export default function TutorsPanel() {
 
   const [tutors, setTutors] = useState<TutorList[]>([]);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -44,12 +49,18 @@ export default function TutorsPanel() {
 
   const load = () => listTutorsWithPets().then(setTutors).catch((e) => setErr((e as Error).message));
   useEffect(() => { load(); }, []);
+  useEffect(() => { setPage(1); }, [search]);
 
   const filtered = tutors.filter((t) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
     return `${t.firstName} ${t.lastName} ${t.email} ${t.documentNumber}`.toLowerCase().includes(term);
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pagedTutors = filtered.slice(pageStart, pageStart + PAGE_SIZE);
 
   const notify = (text: string) => { setErr(''); setMsg(text); };
 
@@ -88,9 +99,7 @@ export default function TutorsPanel() {
           <input placeholder="Nombre, email o documento" value={search} onChange={(e) => setSearch(e.target.value)} className="input" />
         </div>
         {canManage && (
-          <button onClick={showForm ? cancelForm : openCreate} className={showForm ? 'btn btn-secondary' : 'btn btn-primary'}>
-            {showForm ? 'Cancelar' : 'Nuevo tutor'}
-          </button>
+          <button onClick={openCreate} className="btn btn-primary">Nuevo tutor</button>
         )}
       </div>
 
@@ -98,36 +107,41 @@ export default function TutorsPanel() {
       {msg && <div className="alert alert-success">{msg}</div>}
 
       {showForm && canManage && (
-        <form onSubmit={submit} className="card card-pad mb-4 space-y-3">
-          <h3 className="section-title">{editingId != null ? 'Editar tutor' : 'Nuevo tutor'}</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="field">
-              <label className="label">Nombre *</label>
-              <input required placeholder="Nombre" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className="input" />
+        <Modal title={editingId != null ? 'Editar tutor' : 'Nuevo tutor'} onClose={cancelForm}>
+          <form onSubmit={submit} className="space-y-3">
+            {err && <div className="alert alert-error">{err}</div>}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="field">
+                <label className="label">Nombre *</label>
+                <input required placeholder="Nombre" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Apellido *</label>
+                <input required placeholder="Apellido" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Documento</label>
+                <input placeholder="DNI / CUIT" value={form.documentNumber} onChange={(e) => setForm({ ...form, documentNumber: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Email</label>
+                <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Teléfono</label>
+                <input placeholder="Teléfono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Dirección</label>
+                <input placeholder="Dirección" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="input" />
+              </div>
             </div>
-            <div className="field">
-              <label className="label">Apellido *</label>
-              <input required placeholder="Apellido" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} className="input" />
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={cancelForm}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">{editingId != null ? 'Guardar cambios' : 'Registrar tutor'}</button>
             </div>
-            <div className="field">
-              <label className="label">Documento</label>
-              <input placeholder="DNI / CUIT" value={form.documentNumber} onChange={(e) => setForm({ ...form, documentNumber: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Email</label>
-              <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Teléfono</label>
-              <input placeholder="Teléfono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Dirección</label>
-              <input placeholder="Dirección" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="input" />
-            </div>
-          </div>
-          <button type="submit" className="btn btn-primary">{editingId != null ? 'Guardar cambios' : 'Registrar tutor'}</button>
-        </form>
+          </form>
+        </Modal>
       )}
 
       <div className="table-wrap">
@@ -143,7 +157,7 @@ export default function TutorsPanel() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((t) => (
+            {pagedTutors.map((t) => (
               <tr key={t.id}>
                 <td className="font-medium text-slate-800">{t.lastName}, {t.firstName}</td>
                 <td>{t.documentNumber || '—'}</td>
@@ -165,6 +179,17 @@ export default function TutorsPanel() {
           </tbody>
         </table>
       </div>
+
+      {filtered.length > 0 && (
+        <div className="mt-4">
+          <Pagination
+            page={currentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </div>
+      )}
     </section>
   );
 }

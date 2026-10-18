@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using VetClinic.Domain;
 using VetClinic.Domain.Entities;
 
 namespace VetClinic.Infrastructure.Data;
@@ -170,6 +171,8 @@ public class VetClinicDbContext : DbContext
             e.Property(m => m.MedicationName).HasMaxLength(120).IsRequired();
             e.HasOne(m => m.Hospitalization).WithMany(h => h.MedicationAdministrations).HasForeignKey(m => m.HospitalizationId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(m => m.AdministeredBy).WithMany().HasForeignKey(m => m.AdministeredById).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(m => m.InventoryItem).WithMany().HasForeignKey(m => m.InventoryItemId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(m => m.InventoryItemId);
         });
 
         modelBuilder.Entity<InventoryItem>(e =>
@@ -207,6 +210,7 @@ public class VetClinicDbContext : DbContext
         modelBuilder.Entity<Invoice>(e =>
         {
             e.Property(i => i.InvoiceNumber).HasMaxLength(30).IsRequired();
+            e.Property(i => i.Currency).HasMaxLength(3).IsRequired().HasDefaultValue(InvoiceCurrencies.Default);
             e.Property(i => i.Subtotal).HasPrecision(12, 2);
             e.Property(i => i.Taxes).HasPrecision(12, 2);
             e.Property(i => i.Total).HasPrecision(12, 2);

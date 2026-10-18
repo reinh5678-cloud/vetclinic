@@ -18,4 +18,8 @@ public record StockMovementDto(int Id, string Type, decimal Quantity, string Des
 
 public record ExpiringLotDto(int LotId, int InventoryItemId, string ItemName, string ItemCode, string LotNumber, DateTime? ExpirationDate, decimal AvailableQuantity, bool IsExpired);
 
+public record KardexQuery(int? ItemId = null, string? Type = null, DateTime? From = null, DateTime? To = null);
+
+public record KardexEntryDto(int Id, int InventoryItemId, string ItemName, string ItemCode, string Type, decimal Quantity, string Description, DateTime MovementDate, string? LotNumber, string? PerformedByName);
+
 public record InventoryItemDto(int Id, string Name, string Category, string Code, string Unit, decimal StockQuantity, decimal MinStock, decimal UnitPrice, string Supplier, bool LowStock, bool IsFractionable, bool IsActive);

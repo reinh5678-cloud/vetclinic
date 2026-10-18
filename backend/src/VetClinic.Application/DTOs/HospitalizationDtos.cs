@@ -6,7 +6,7 @@ public record StartHospitalizationRequest(int PetId, int? AssignedVetId, string 
 
 public record AddEvolutionRequest(decimal? Temperature, int? HeartRate, int? RespiratoryRate, string Observations);
 
-public record AddMedicationAdministrationRequest(string MedicationName, string Dose, string Route, DateTime AdministeredAt);
+public record AddMedicationAdministrationRequest(string MedicationName, string Dose, string Route, DateTime AdministeredAt, int? InventoryItemId = null, decimal Quantity = 1);
 
 public record ChangeStatusRequest(string Status);
 
@@ -14,7 +14,7 @@ public record HospitalizationDto(int Id, DateTime StartDate, DateTime? EndDate, 
 
 public record EvolutionDto(int Id, DateTime RecordedAt, decimal? Temperature, int? HeartRate, int? RespiratoryRate, string Observations, string? RecordedByName);
 
-public record MedicationDto(int Id, string MedicationName, string Dose, string Route, DateTime AdministeredAt, string? AdministeredByName);
+public record MedicationDto(int Id, string MedicationName, string Dose, string Route, DateTime AdministeredAt, string? AdministeredByName, int? InventoryItemId);
 
 public record HospitalizationDetailDto(
     int Id,

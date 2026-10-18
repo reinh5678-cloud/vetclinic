@@ -8,8 +8,11 @@ import {
   type Pet,
   type UpcomingVaccine,
 } from '../../api/patients';
+import Modal from '../../components/Modal';
+import Pagination from '../../components/Pagination';
 
 const DAY_OPTIONS = [7, 30, 90, 365];
+const PAGE_SIZE = 10;
 
 export default function VaccinesPanel() {
   const { can } = useAuth();
@@ -17,9 +20,11 @@ export default function VaccinesPanel() {
 
   const [days, setDays] = useState(30);
   const [upcoming, setUpcoming] = useState<UpcomingVaccine[]>([]);
+  const [page, setPage] = useState(1);
   const [pets, setPets] = useState<Pet[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
 
+  const [showRegister, setShowRegister] = useState(false);
   const [petId, setPetId] = useState('');
   const [itemId, setItemId] = useState('');
   const [applicationDate, setApplicationDate] = useState(new Date().toISOString().slice(0, 10));
@@ -33,6 +38,7 @@ export default function VaccinesPanel() {
   }, [days]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { setPage(1); }, [days]);
   useEffect(() => {
     listPets({ active: true }).then(setPets).catch(console.error);
     listItems()
@@ -42,7 +48,15 @@ export default function VaccinesPanel() {
 
   const overdue = upcoming.filter((v) => v.isOverdue);
 
+  const totalPages = Math.max(1, Math.ceil(upcoming.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pagedUpcoming = upcoming.slice(pageStart, pageStart + PAGE_SIZE);
+
   const notify = (text: string) => { setErr(''); setMsg(text); };
+
+  const openRegister = () => { setErr(''); setMsg(''); setShowRegister(true); };
+  const closeRegister = () => { setShowRegister(false); setItemId(''); setNextDueDate(''); };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -54,7 +68,7 @@ export default function VaccinesPanel() {
         applicationDate: new Date(applicationDate).toISOString(),
         nextDueDate: nextDueDate ? new Date(nextDueDate).toISOString() : null,
       });
-      setItemId(''); setNextDueDate('');
+      closeRegister();
       notify('Vacuna registrada.');
       load();
     } catch (ex) {
@@ -76,40 +90,48 @@ export default function VaccinesPanel() {
             <span>{overdue.length === 1 ? 'Hay 1 dosis vencida' : `Hay ${overdue.length} dosis vencidas`} que requieren seguimiento.</span>
           </div>
         )}
+        {canManage && (
+          <button type="button" className="btn btn-primary" onClick={openRegister}>Registrar vacuna</button>
+        )}
       </div>
 
       {err && <div className="alert alert-error">{err}</div>}
       {msg && <div className="alert alert-success">{msg}</div>}
 
-      {canManage && (
-        <form onSubmit={submit} className="card card-pad mb-4">
-          <h3 className="section-title mb-3">Registrar vacuna</h3>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="field min-w-48 flex-1">
+      {showRegister && canManage && (
+        <Modal title="Registrar vacuna" onClose={closeRegister}>
+          <form onSubmit={submit} className="space-y-3">
+            {err && <div className="alert alert-error">{err}</div>}
+            <div className="field">
               <label className="label">Paciente</label>
               <select value={petId} onChange={(e) => setPetId(e.target.value)} className="select" required>
                 <option value="">-- Paciente --</option>
                 {pets.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.species})</option>)}
               </select>
             </div>
-            <div className="field min-w-48 flex-1">
+            <div className="field">
               <label className="label">Vacuna</label>
               <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="select" required>
                 <option value="">-- Vacuna --</option>
                 {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
               </select>
             </div>
-            <div className="field">
-              <label className="label">Aplicación</label>
-              <input type="date" value={applicationDate} onChange={(e) => setApplicationDate(e.target.value)} className="input" required />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="field">
+                <label className="label">Aplicación</label>
+                <input type="date" value={applicationDate} onChange={(e) => setApplicationDate(e.target.value)} className="input" required />
+              </div>
+              <div className="field">
+                <label className="label">Próxima dosis</label>
+                <input type="date" value={nextDueDate} onChange={(e) => setNextDueDate(e.target.value)} className="input" />
+              </div>
             </div>
-            <div className="field">
-              <label className="label">Próxima dosis</label>
-              <input type="date" value={nextDueDate} onChange={(e) => setNextDueDate(e.target.value)} className="input" />
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={closeRegister}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">Registrar</button>
             </div>
-            <button type="submit" className="btn btn-primary">Registrar</button>
-          </div>
-        </form>
+          </form>
+        </Modal>
       )}
 
       <div className="table-wrap">
@@ -125,7 +147,7 @@ export default function VaccinesPanel() {
             </tr>
           </thead>
           <tbody>
-            {upcoming.map((v, i) => (
+            {pagedUpcoming.map((v, i) => (
               <tr key={`${v.petId}-${v.nextDueDate}-${i}`}>
                 <td className="font-medium text-slate-800">{v.petName}</td>
                 <td>{v.tutorName ?? '—'}</td>
@@ -147,6 +169,17 @@ export default function VaccinesPanel() {
           </tbody>
         </table>
       </div>
+
+      {upcoming.length > 0 && (
+        <div className="mt-4">
+          <Pagination
+            page={currentPage}
+            totalItems={upcoming.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </div>
+      )}
     </section>
   );
 }

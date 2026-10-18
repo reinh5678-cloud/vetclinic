@@ -15,5 +15,6 @@ public interface IInventoryService
     Task<bool> DeactivateLotAsync(int lotId, CancellationToken ct = default);
     Task<bool> ReactivateLotAsync(int lotId, CancellationToken ct = default);
     Task<IReadOnlyList<StockMovementDto>> ListMovementsAsync(int itemId, CancellationToken ct = default);
+    Task<IReadOnlyList<KardexEntryDto>> ListKardexAsync(KardexQuery? query = null, CancellationToken ct = default);
     Task<IReadOnlyList<ExpiringLotDto>> ListExpiringLotsAsync(int days = 30, CancellationToken ct = default);
 }

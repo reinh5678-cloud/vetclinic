@@ -36,6 +36,16 @@ public class InventoryController : ControllerBase
     public async Task<IActionResult> ListExpiringLots(int days = 30, CancellationToken ct = default) =>
         Ok(await _service.ListExpiringLotsAsync(days, ct));
 
+    [HttpGet("movements")]
+    [RequirePermission(Permissions.InventoryView)]
+    public async Task<IActionResult> ListKardex(
+        int? itemId,
+        string? type,
+        DateTime? from,
+        DateTime? to,
+        CancellationToken ct) =>
+        Ok(await _service.ListKardexAsync(new KardexQuery(itemId, type, from, to), ct));
+
     [HttpGet("{id:int}")]
     [RequirePermission(Permissions.InventoryView)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)

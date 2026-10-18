@@ -1,9 +1,11 @@
+export const CURRENCY_SYMBOL = 'S/';
+
 export function formatCurrency(value: number): string {
   const n = new Intl.NumberFormat('es-AR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
-  return `$${n}`;
+  return `${CURRENCY_SYMBOL} ${n}`;
 }
 
 export function formatNumber(value: number): string {

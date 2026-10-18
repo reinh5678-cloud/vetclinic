@@ -52,6 +52,7 @@ export default function PatientDetail({ pet }: { pet: Pet }) {
             <div><dt className="text-xs text-slate-500">Color</dt><dd className="text-slate-700">{pet.color || '—'}</dd></div>
             <div><dt className="text-xs text-slate-500">Esterilizado</dt><dd className="text-slate-700">{pet.isSterilized ? 'Sí' : 'No'}</dd></div>
             <div className="col-span-2"><dt className="text-xs text-slate-500">Tutor</dt><dd className="text-slate-700">{pet.tutorName ?? 'Sin asignar'}</dd></div>
+            <div className="col-span-2"><dt className="text-xs text-slate-500">Teléfono del tutor</dt><dd className="text-slate-700">{pet.tutorPhone || '—'}</dd></div>
           </dl>
         </section>
 

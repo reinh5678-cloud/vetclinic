@@ -10,6 +10,8 @@ public class MedicationAdministration : BaseEntity
     public DateTime AdministeredAt { get; set; } = DateTime.UtcNow;
     public int HospitalizationId { get; set; }
     public Hospitalization? Hospitalization { get; set; }
+    public int? InventoryItemId { get; set; }
+    public InventoryItem? InventoryItem { get; set; }
     public int? AdministeredById { get; set; }
     public User? AdministeredBy { get; set; }
 }

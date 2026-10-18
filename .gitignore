@@ -27,3 +27,6 @@ Thumbs.db
 
 # Backups de base de datos
 backups/
+
+# Capturas y snapshots de navegación (Playwright MCP)
+.playwright-mcp/

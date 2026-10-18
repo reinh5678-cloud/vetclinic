@@ -20,6 +20,7 @@ export interface Pet {
   isSterilized: boolean;
   photoUrl: string | null;
   tutorName: string | null;
+  tutorPhone: string | null;
   isActive: boolean;
 }
 

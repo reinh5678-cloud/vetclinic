@@ -352,6 +352,47 @@ public class InventoryService : IInventoryService
             m.PerformedBy?.FullName)).ToList();
     }
 
+    public async Task<IReadOnlyList<KardexEntryDto>> ListKardexAsync(KardexQuery? query = null, CancellationToken ct = default)
+    {
+        var movements = _movements.Query()
+            .AsNoTracking()
+            .Include(m => m.InventoryItem)
+            .Include(m => m.ProductLot)
+            .Include(m => m.PerformedBy)
+            .AsQueryable();
+
+        if (query?.ItemId is int itemId)
+            movements = movements.Where(m => m.InventoryItemId == itemId);
+
+        if (!string.IsNullOrWhiteSpace(query?.Type)
+            && Enum.TryParse<StockMovementType>(query.Type, ignoreCase: true, out var type))
+            movements = movements.Where(m => m.Type == type);
+
+        if (query?.From is DateTime from)
+            movements = movements.Where(m => m.MovementDate >= ToUtc(from));
+
+        if (query?.To is DateTime to)
+            movements = movements.Where(m => m.MovementDate <= ToUtc(to).AddDays(1).AddTicks(-1));
+
+        var rows = await movements
+            .OrderByDescending(m => m.MovementDate)
+            .ThenByDescending(m => m.Id)
+            .Take(MaxMovements)
+            .ToListAsync(ct);
+
+        return rows.Select(m => new KardexEntryDto(
+            m.Id,
+            m.InventoryItemId,
+            m.InventoryItem?.Name ?? "—",
+            m.InventoryItem?.Code ?? "—",
+            m.Type.ToString(),
+            m.Quantity,
+            m.Description,
+            m.MovementDate,
+            m.ProductLot?.LotNumber,
+            m.PerformedBy?.FullName)).ToList();
+    }
+
     public async Task<IReadOnlyList<ExpiringLotDto>> ListExpiringLotsAsync(int days = 30, CancellationToken ct = default)
     {
         if (days < 0) days = 0;
@@ -383,6 +424,13 @@ public class InventoryService : IInventoryService
             throw new ArgumentException($"{label} es obligatorio");
         return value.Trim();
     }
+
+    private static DateTime ToUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+    };
 
     private static void ValidateNumbers(decimal minStock, decimal unitPrice)
     {

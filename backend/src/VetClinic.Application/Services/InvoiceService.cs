@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using VetClinic.Application.DTOs;
 using VetClinic.Application.Interfaces;
+using VetClinic.Domain;
 using VetClinic.Domain.Entities;
 using VetClinic.Domain.Enums;
 
@@ -56,6 +57,8 @@ public class InvoiceService : IInvoiceService
             throw new ArgumentException("La factura debe tener al menos una línea");
         if (!Enum.IsDefined(r.Status))
             throw new ArgumentException("Estado de factura inválido");
+        if (!InvoiceCurrencies.IsValid(r.Currency))
+            throw new ArgumentException($"Moneda inválida. Valores permitidos: {string.Join(", ", InvoiceCurrencies.All)}");
         if (string.IsNullOrWhiteSpace(r.PaymentMethod) ||
             !billing.PaymentMethods.Contains(r.PaymentMethod, StringComparer.OrdinalIgnoreCase))
             throw new ArgumentException($"Medio de pago inválido. Valores permitidos: {string.Join(", ", billing.PaymentMethods)}");
@@ -72,6 +75,7 @@ public class InvoiceService : IInvoiceService
             PetId = r.PetId,
             Status = r.Status,
             PaymentMethod = r.PaymentMethod,
+            Currency = r.Currency.Trim().ToUpperInvariant(),
             InvoiceNumber = GenerateNumber(billing.InvoicePrefix),
             CreatedById = _currentUser.UserId
         };
@@ -185,6 +189,7 @@ public class InvoiceService : IInvoiceService
 
     private static InvoiceDto Map(Invoice i) => new(
         i.Id, i.InvoiceNumber, i.IssueDate, i.Status.ToString(), i.Subtotal, i.Taxes, i.Total,
+        string.IsNullOrWhiteSpace(i.Currency) ? InvoiceCurrencies.Default : i.Currency,
         i.PaymentMethod, i.TutorId, i.Tutor is null ? null : $"{i.Tutor.FirstName} {i.Tutor.LastName}",
         i.PetId, i.Pet?.Name, i.Notes,
         (i.Lines ?? new List<InvoiceLine>()).Select(Map).ToList());

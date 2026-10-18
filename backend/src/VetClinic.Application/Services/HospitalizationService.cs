@@ -48,6 +48,10 @@ public class HospitalizationService : IHospitalizationService
     private readonly IRepository<MedicationAdministration> _medications;
     private readonly IRepository<Pet> _pets;
     private readonly IRepository<User> _users;
+    private readonly IRepository<InventoryItem> _inventory;
+    private readonly IRepository<ProductLot> _lots;
+    private readonly IRepository<StockMovement> _movements;
+    private readonly IUnitOfWork _uow;
     private readonly ICurrentUser _currentUser;
 
     public HospitalizationService(
@@ -56,6 +60,10 @@ public class HospitalizationService : IHospitalizationService
         IRepository<MedicationAdministration> medications,
         IRepository<Pet> pets,
         IRepository<User> users,
+        IRepository<InventoryItem> inventory,
+        IRepository<ProductLot> lots,
+        IRepository<StockMovement> movements,
+        IUnitOfWork uow,
         ICurrentUser currentUser)
     {
         _hospitalizations = hospitalizations;
@@ -63,6 +71,10 @@ public class HospitalizationService : IHospitalizationService
         _medications = medications;
         _pets = pets;
         _users = users;
+        _inventory = inventory;
+        _lots = lots;
+        _movements = movements;
+        _uow = uow;
         _currentUser = currentUser;
     }
 
@@ -155,16 +167,64 @@ public class HospitalizationService : IHospitalizationService
         if (h is null) return null;
         EnsureActive(h, "administrar medicación");
 
-        await _medications.AddAsync(new MedicationAdministration
+        var medicationName = Required(r.MedicationName, "Medicamento", 120);
+        var dose = Optional(r.Dose, "Dosis", 60);
+        var route = Optional(r.Route, "Vía", 40);
+        var administeredAt = r.AdministeredAt == default ? DateTime.UtcNow : r.AdministeredAt;
+
+        if (r.InventoryItemId.HasValue)
         {
-            HospitalizationId = id,
-            MedicationName = Required(r.MedicationName, "Medicamento", 120),
-            Dose = Optional(r.Dose, "Dosis", 60),
-            Route = Optional(r.Route, "Vía", 40),
-            AdministeredAt = r.AdministeredAt == default ? DateTime.UtcNow : r.AdministeredAt,
-            AdministeredById = _currentUser.UserId
-        }, ct);
-        await _medications.SaveChangesAsync(ct);
+            var item = await _inventory.GetByIdAsync(r.InventoryItemId.Value, ct);
+            if (item is null)
+                throw new ArgumentException("El artículo seleccionado ya no existe en el inventario");
+            if (!item.IsActive)
+                throw new InvalidOperationException($"«{item.Name}» está inactivo; no se puede administrar");
+            if (item.Category.Equals("Vacunas", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException($"«{item.Name}» está clasificado como vacuna (categoría «{item.Category}»). Use el módulo de vacunas para aplicarla.");
+
+            var quantity = r.Quantity <= 0 ? 1m : r.Quantity;
+            medicationName = item.Name;
+
+            await using var tx = await _uow.BeginTransactionAsync(ct);
+            try
+            {
+                await Fefo.ConsumeAsync(item, _lots, _movements, quantity, StockMovementType.SalidaUsoInterno,
+                    $"Medicación en hospitalización #{id}", _currentUser.UserId, ct);
+                _inventory.Update(item);
+
+                await _medications.AddAsync(new MedicationAdministration
+                {
+                    HospitalizationId = id,
+                    MedicationName = medicationName,
+                    Dose = dose,
+                    Route = route,
+                    AdministeredAt = administeredAt,
+                    InventoryItemId = item.Id,
+                    AdministeredById = _currentUser.UserId
+                }, ct);
+                await _medications.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch
+            {
+                await tx.RollbackAsync(ct);
+                throw;
+            }
+        }
+        else
+        {
+            await _medications.AddAsync(new MedicationAdministration
+            {
+                HospitalizationId = id,
+                MedicationName = medicationName,
+                Dose = dose,
+                Route = route,
+                AdministeredAt = administeredAt,
+                AdministeredById = _currentUser.UserId
+            }, ct);
+            await _medications.SaveChangesAsync(ct);
+        }
+
         return await ReloadAsync(id, ct);
     }
 
@@ -302,7 +362,7 @@ public class HospitalizationService : IHospitalizationService
                 .ToList(),
             h.MedicationAdministrations
                 .OrderByDescending(m => m.AdministeredAt)
-                .Select(m => new MedicationDto(m.Id, m.MedicationName, m.Dose, m.Route, m.AdministeredAt, m.AdministeredBy?.FullName))
+                .Select(m => new MedicationDto(m.Id, m.MedicationName, m.Dose, m.Route, m.AdministeredAt, m.AdministeredBy?.FullName, m.InventoryItemId))
                 .ToList());
     }
 }

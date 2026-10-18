@@ -18,7 +18,7 @@ export default function BillingPanel() {
       {value ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="field">
-            <label className="label">IVA (%)</label>
+            <label className="label">IGV (%)</label>
             <NumberInput
               min={0}
               max={100}

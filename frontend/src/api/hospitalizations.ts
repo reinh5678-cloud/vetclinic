@@ -60,6 +60,7 @@ export interface Medication {
   route: string;
   administeredAt: string;
   administeredByName: string | null;
+  inventoryItemId: number | null;
 }
 
 export interface Hospitalization {
@@ -99,6 +100,8 @@ export interface MedicationInput {
   dose: string;
   route: string;
   administeredAt: string;
+  inventoryItemId: number | null;
+  quantity: number;
 }
 
 export const listActive = () => api<Hospitalization[]>('/hospitalizations/active');

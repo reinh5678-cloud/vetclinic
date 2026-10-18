@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import Modal from '../components/Modal';
 import RescheduleDialog from './appointments/RescheduleDialog';
 import {
   ACTIVE_STATUSES,
@@ -37,6 +38,22 @@ const VIEWS: { id: View; label: string }[] = [
   { id: 'all', label: 'Todas' },
 ];
 
+const PAGE_SIZE = 10;
+
+function pageNumbers(current: number, total: number): (number | '…')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = new Set<number>([1, total, current, current - 1, current + 1]);
+  const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const result: (number | '…')[] = [];
+  let prev = 0;
+  for (const p of sorted) {
+    if (prev && p - prev > 1) result.push('…');
+    result.push(p);
+    prev = p;
+  }
+  return result;
+}
+
 export default function AppointmentsPage() {
   const { can } = useAuth();
   const navigate = useNavigate();
@@ -51,7 +68,12 @@ export default function AppointmentsPage() {
 
   const [filterVet, setFilterVet] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [page, setPage] = useState(1);
 
+  const [showCreate, setShowCreate] = useState(false);
   const [petId, setPetId] = useState('');
   const [vetId, setVetId] = useState('');
   const [urgency, setUrgency] = useState('Media');
@@ -71,6 +93,7 @@ export default function AppointmentsPage() {
   const shownOccupied = agenda && date && vetId && !dayClosed ? occupied : [];
 
   const [editing, setEditing] = useState<Appointment | null>(null);
+  const [statusTarget, setStatusTarget] = useState<Appointment | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
   const [cancelNote, setCancelNote] = useState('');
   const [msg, setMsg] = useState('');
@@ -79,7 +102,14 @@ export default function AppointmentsPage() {
   const load = useCallback(() => {
     if (!canView) return;
     const filters: AppointmentFilters = {};
-    if (view === 'today') {
+    if (dateFrom || dateTo) {
+      if (dateFrom) filters.from = new Date(`${dateFrom}T00:00`).toISOString();
+      if (dateTo) {
+        const end = new Date(`${dateTo}T00:00`);
+        end.setDate(end.getDate() + 1);
+        filters.to = end.toISOString();
+      }
+    } else if (view === 'today') {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
       const end = new Date(start);
@@ -93,7 +123,7 @@ export default function AppointmentsPage() {
     if (filterStatus) filters.status = filterStatus;
 
     listAppointments(filters).then(setAppointments).catch((e) => setErr((e as Error).message));
-  }, [canView, view, filterVet, filterStatus]);
+  }, [canView, view, filterVet, filterStatus, dateFrom, dateTo]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -132,7 +162,38 @@ export default function AppointmentsPage() {
       .catch(() => setOccupied([]));
   }, [agenda, date, vetId, duration, dayClosed, agendaTick]);
 
+  const term = search.trim().toLowerCase();
+  const filtered = term
+    ? appointments.filter((a) => {
+        const hay = [a.petName, a.vetName, a.reason, a.notes, a.urgency, a.status, new Date(a.startTime).toLocaleString()]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return hay.includes(term);
+      })
+    : appointments;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const paged = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [search, view, filterVet, filterStatus, dateFrom, dateTo]);
+
   const notify = (text: string) => { setErr(''); setMsg(text); };
+
+  const clearFilters = () => {
+    setSearch('');
+    setDateFrom('');
+    setDateTo('');
+    setFilterVet('');
+    setFilterStatus('');
+  };
+
+  const openCreate = () => {
+    setErr('');
+    setMsg('');
+    setShowCreate(true);
+  };
 
   const create = async (e: FormEvent) => {
     e.preventDefault();
@@ -155,6 +216,7 @@ export default function AppointmentsPage() {
       } else {
         setStartLocal(defaultStartLocal());
       }
+      setShowCreate(false);
       notify('Cita agendada.');
       load();
     } catch (ex) {
@@ -214,24 +276,47 @@ export default function AppointmentsPage() {
           <h2 className="page-title">Agenda</h2>
           <p className="page-subtitle">Programación y seguimiento de citas por paciente y veterinario.</p>
         </div>
-        <div className="flex rounded-lg border border-slate-200 bg-white p-1">
-          {VIEWS.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => setView(v.id)}
-              className={
-                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors ' +
-                (view === v.id ? 'bg-teal-700 text-white' : 'text-slate-600 hover:bg-slate-100')
-              }
-            >
-              {v.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-slate-200 bg-white p-1">
+            {VIEWS.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setView(v.id)}
+                className={
+                  'rounded-md px-3 py-1.5 text-sm font-medium transition-colors ' +
+                  (view === v.id ? 'bg-teal-700 text-white' : 'text-slate-600 hover:bg-slate-100')
+                }
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+          {canManage && (
+            <button type="button" className="btn btn-primary" onClick={openCreate}>Nueva cita</button>
+          )}
         </div>
       </div>
 
       <div className="card card-pad flex flex-wrap items-end gap-3">
+        <div className="field min-w-56 flex-1">
+          <label className="label">Buscar</label>
+          <input
+            type="search"
+            placeholder="Paciente, veterinario, motivo, estado…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input"
+          />
+        </div>
+        <div className="field">
+          <label className="label">Desde</label>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input" />
+        </div>
+        <div className="field">
+          <label className="label">Hasta</label>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input" />
+        </div>
         <div className="field min-w-44">
           <label className="label">Veterinario</label>
           <select value={filterVet} onChange={(e) => setFilterVet(e.target.value)} className="select">
@@ -246,46 +331,223 @@ export default function AppointmentsPage() {
             {Object.keys(STATUS_TRANSITIONS).map((s) => <option key={s}>{s}</option>)}
           </select>
         </div>
+        {(search || dateFrom || dateTo || filterVet || filterStatus) && (
+          <button type="button" className="btn btn-secondary" onClick={clearFilters}>Limpiar</button>
+        )}
         <div className="flex-1" />
         <div className="text-sm text-slate-500">
-          {appointments.length} {appointments.length === 1 ? 'cita' : 'citas'}
+          {filtered.length} de {appointments.length} {appointments.length === 1 ? 'cita' : 'citas'}
         </div>
       </div>
 
-      {err && <div className="alert alert-error">{err}</div>}
+      {err && !showCreate && <div className="alert alert-error">{err}</div>}
       {msg && <div className="alert alert-success">{msg}</div>}
 
-      {canManage && (
-        <form onSubmit={create} className="card card-pad flex flex-wrap items-end gap-3">
-          <div className="field min-w-44">
-            <label className="label">Paciente</label>
-            <select value={petId} onChange={(e) => setPetId(e.target.value)} className="select" required>
-              <option value="">-- Paciente --</option>
-              {pets.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.species})</option>)}
-            </select>
-          </div>
-          <div className="field min-w-44">
-            <label className="label">Veterinario</label>
-            <select value={vetId} onChange={(e) => setVetId(e.target.value)} className="select" required>
-              <option value="">-- Veterinario --</option>
-              {vets.map((v) => <option key={v.id} value={v.id}>{v.fullName}</option>)}
-            </select>
-          </div>
-          {usingSlots ? (
-            <>
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th className="text-center">Paciente</th>
+              <th className="text-center">Veterinario</th>
+              <th className="text-center">Urgencia</th>
+              <th>Motivo</th>
+              <th className="text-center">Estado</th>
+              {canManage && <th className="text-center">Acciones</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {paged.map((a) => {
+              const terminal = TERMINAL_STATUSES.includes(a.status);
+              return (
+                <tr key={a.id}>
+                  <td className="whitespace-nowrap">
+                    <div>{new Date(a.startTime).toLocaleString()}</div>
+                    <div className="text-xs text-slate-400">{a.durationMinutes} min</div>
+                  </td>
+                  <td className="text-center">{a.petName ?? '-'}</td>
+                  <td className="text-center">{a.vetName ?? '-'}</td>
+                  <td className="text-center">{a.urgency}</td>
+                  <td className="group max-w-xs">
+                    <div className="cell-expand">
+                      <div>{a.reason}</div>
+                      {a.notes && <div className="text-xs text-slate-400">{a.notes}</div>}
+                    </div>
+                  </td>
+                  <td className="text-center">
+                    <span className={`badge ${STATUS_BADGE[a.status] ?? 'badge-neutral'}`}>{a.status}</span>
+                  </td>
+                  {canManage && (
+                    <td className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        {canManageMedical && a.petId && !terminal && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-xs"
+                            title="Registrar la consulta de esta cita"
+                            onClick={() => navigate(`/historia?petId=${a.petId}&appointmentId=${a.id}`)}
+                          >
+                            Consulta
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          disabled={terminal}
+                          onClick={() => setEditing(a)}
+                        >
+                          Reprogramar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          disabled={terminal}
+                          onClick={() => setStatusTarget(a)}
+                        >
+                          Estado
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={canManage ? 7 : 6} className="py-10 text-center text-slate-400">
+                  No hay citas para este filtro.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {filtered.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-slate-500">
+            Mostrando {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} de {filtered.length}
+          </p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="btn btn-secondary btn-xs"
+                disabled={currentPage === 1}
+                onClick={() => setPage(currentPage - 1)}
+              >
+                Anterior
+              </button>
+              {pageNumbers(currentPage, totalPages).map((p, i) =>
+                p === '…' ? (
+                  <span key={`gap-${i}`} className="px-1 text-xs text-slate-400">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`btn btn-xs ${p === currentPage ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </button>
+                ),
+              )}
+              <button
+                type="button"
+                className="btn btn-secondary btn-xs"
+                disabled={currentPage === totalPages}
+                onClick={() => setPage(currentPage + 1)}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="alert alert-info">
+        <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p>Los cambios de estado se validan contra las transiciones permitidas; el cruce de horarios (overlap) se valida en el backend al agendar o reprogramar.</p>
+      </div>
+
+      {showCreate && (
+        <Modal title="Nueva cita" onClose={() => setShowCreate(false)} wide>
+          <form onSubmit={create} className="space-y-3">
+            {err && <div className="alert alert-error">{err}</div>}
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="field">
-                <label className="label">Fecha</label>
+                <label className="label">Paciente</label>
+                <select value={petId} onChange={(e) => setPetId(e.target.value)} className="select" required>
+                  <option value="">-- Paciente --</option>
+                  {pets.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.species})</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">Veterinario</label>
+                <select value={vetId} onChange={(e) => setVetId(e.target.value)} className="select" required>
+                  <option value="">-- Veterinario --</option>
+                  {vets.map((v) => <option key={v.id} value={v.id}>{v.fullName}</option>)}
+                </select>
+              </div>
+              {usingSlots ? (
+                <div className="field">
+                  <label className="label">Fecha</label>
+                  <input
+                    type="date"
+                    value={date}
+                    min={toDateInput(new Date())}
+                    max={agenda ? futureDateInput(agenda.maxAdvanceDays) : undefined}
+                    onChange={(e) => { setDate(e.target.value); setSlot(''); }}
+                    className="input"
+                    required
+                  />
+                </div>
+              ) : (
+                <div className="field">
+                  <label className="label">Fecha y hora</label>
+                  <input
+                    type="datetime-local"
+                    value={startLocal}
+                    onChange={(e) => setStartLocal(e.target.value)}
+                    className="input"
+                    required
+                  />
+                </div>
+              )}
+              <div className="field">
+                <label className="label">Duración (min)</label>
                 <input
-                  type="date"
-                  value={date}
-                  min={toDateInput(new Date())}
-                  max={agenda ? futureDateInput(agenda.maxAdvanceDays) : undefined}
-                  onChange={(e) => { setDate(e.target.value); setSlot(''); }}
+                  type="number"
+                  min={agenda ? agenda.slotMinutes : 5}
+                  max={480}
+                  step={5}
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
                   className="input"
                   required
                 />
               </div>
-              <div className="field basis-full">
+              <div className="field">
+                <label className="label">Urgencia</label>
+                <select value={urgency} onChange={(e) => setUrgency(e.target.value)} className="select">
+                  {URGENCIES.map((u) => <option key={u}>{u}</option>)}
+                </select>
+              </div>
+              <div className="field sm:col-span-2">
+                <label className="label">Motivo</label>
+                <input
+                  placeholder="Motivo de la cita (ej: control, vacunación)"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  className="input"
+                  required
+                />
+              </div>
+            </div>
+            {usingSlots && (
+              <div className="field">
                 <label className="label">Franja horaria</label>
                 {dayClosed ? (
                   <p className="text-sm text-amber-600">La clínica no atiende este día.</p>
@@ -312,136 +574,45 @@ export default function AppointmentsPage() {
                   </div>
                 )}
               </div>
-            </>
-          ) : (
-            <div className="field">
-              <label className="label">Fecha y hora</label>
-              <input
-                type="datetime-local"
-                value={startLocal}
-                onChange={(e) => setStartLocal(e.target.value)}
-                className="input"
-                required
-              />
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">Agendar</button>
             </div>
-          )}
-          <div className="field w-28">
-            <label className="label">Duración (min)</label>
-            <input
-              type="number"
-              min={agenda ? agenda.slotMinutes : 5}
-              max={480}
-              step={5}
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              className="input"
-              required
-            />
-          </div>
-          <div className="field w-36">
-            <label className="label">Urgencia</label>
-            <select value={urgency} onChange={(e) => setUrgency(e.target.value)} className="select">
-              {URGENCIES.map((u) => <option key={u}>{u}</option>)}
-            </select>
-          </div>
-          <div className="field min-w-56 flex-1">
-            <label className="label">Motivo</label>
-            <input
-              placeholder="Motivo de la cita (ej: control, vacunación)"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="input"
-              required
-            />
-          </div>
-          <button type="submit" className="btn btn-primary">Agendar</button>
-        </form>
+          </form>
+        </Modal>
       )}
 
-      <div className="table-wrap">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th className="text-center">Paciente</th>
-              <th className="text-center">Veterinario</th>
-              <th className="text-center">Urgencia</th>
-              <th>Motivo</th>
-              <th className="text-center">Estado</th>
-              {canManage && <th className="text-center">Acciones</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {appointments.map((a) => {
-              const terminal = TERMINAL_STATUSES.includes(a.status);
-              const targets = [a.status, ...(STATUS_TRANSITIONS[a.status] ?? [])];
-              return (
-                <tr key={a.id}>
-                  <td className="whitespace-nowrap">
-                    <div>{new Date(a.startTime).toLocaleString()}</div>
-                    <div className="text-xs text-slate-400">{a.durationMinutes} min</div>
-                  </td>
-                  <td className="text-center">{a.petName ?? '-'}</td>
-                  <td className="text-center">{a.vetName ?? '-'}</td>
-                  <td className="text-center">{a.urgency}</td>
-                  <td>
-                    <div>{a.reason}</div>
-                    {a.notes && <div className="text-xs text-slate-400">{a.notes}</div>}
-                  </td>
-                  <td className="text-center">
-                    <span className={`badge ${STATUS_BADGE[a.status] ?? 'badge-neutral'}`}>{a.status}</span>
-                  </td>
-                  {canManage && (
-                    <td className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        {canManageMedical && a.petId && !terminal && (
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-xs"
-                            title="Registrar la consulta de esta cita"
-                            onClick={() => navigate(`/historia?petId=${a.petId}&appointmentId=${a.id}`)}
-                          >
-                            Consulta
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-xs"
-                          disabled={terminal}
-                          onClick={() => setEditing(a)}
-                        >
-                          Reprogramar
-                        </button>
-                        <select
-                          value={a.status}
-                          onChange={(e) => changeStatus(a, e.target.value as AppointmentStatus)}
-                          className="select w-auto py-1 text-xs"
-                        >
-                          {targets.map((s) => <option key={s}>{s}</option>)}
-                        </select>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
-            {appointments.length === 0 && (
-              <tr>
-                <td colSpan={canManage ? 7 : 6} className="py-10 text-center text-slate-400">
-                  No hay citas para este filtro.
-                </td>
-              </tr>
+      {statusTarget && (
+        <Modal title={`Estado · ${statusTarget.petName ?? 'cita'}`} onClose={() => setStatusTarget(null)}>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500">
+              Estado actual:{' '}
+              <span className={`badge ${STATUS_BADGE[statusTarget.status] ?? 'badge-neutral'}`}>{statusTarget.status}</span>
+            </p>
+            {(STATUS_TRANSITIONS[statusTarget.status]?.length ?? 0) > 0 ? (
+              <div className="flex flex-col gap-2">
+                {STATUS_TRANSITIONS[statusTarget.status].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="btn btn-secondary justify-start"
+                    onClick={() => {
+                      const a = statusTarget;
+                      setStatusTarget(null);
+                      changeStatus(a, s);
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">No hay transiciones disponibles desde este estado.</p>
             )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="alert alert-info">
-        <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p>Los cambios de estado se validan contra las transiciones permitidas; el cruce de horarios (overlap) se valida en el backend al agendar o reprogramar.</p>
-      </div>
+          </div>
+        </Modal>
+      )}
 
       {editing && (
         <RescheduleDialog

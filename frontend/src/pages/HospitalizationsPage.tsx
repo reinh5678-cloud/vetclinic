@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Modal from '../components/Modal';
+import { listItems, type InventoryItem } from '../api/inventory';
 import {
   STATUSES,
   STATUS_BADGE,
@@ -45,11 +47,13 @@ export default function HospitalizationsPage() {
   const [all, setAll] = useState<Hospitalization[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [vets, setVets] = useState<UserLite[]>([]);
+  const [medItems, setMedItems] = useState<InventoryItem[]>([]);
 
   const [statusFilter, setStatusFilter] = useState('');
   const [petFilter, setPetFilter] = useState('');
 
   const [form, setForm] = useState(emptyForm);
+  const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
@@ -72,6 +76,9 @@ export default function HospitalizationsPage() {
     api<Pet[]>('/patients/pets').then(setPets).catch(console.error);
     api<UserLite[]>('/auth/users')
       .then((users) => setVets(users.filter((u) => u.role === 'Veterinario')))
+      .catch(console.error);
+    listItems()
+      .then((all) => setMedItems(all.filter((i) => i.category.toLowerCase() !== 'vacunas')))
       .catch(console.error);
   }, []);
 
@@ -96,6 +103,7 @@ export default function HospitalizationsPage() {
         notes: form.notes,
       });
       setForm(emptyForm);
+      setShowForm(false);
       notify('Paciente hospitalizado.');
       loadActive();
       if (tab === 'all') loadAll();
@@ -115,57 +123,37 @@ export default function HospitalizationsPage() {
           <h2 className="page-title">Hospitalización</h2>
           <p className="page-subtitle">Ingreso, evolución y medicación de pacientes internados.</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className={`btn btn-sm ${tab === 'active' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setTab('active')}
-          >
-            Activos
-          </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${tab === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setTab('all')}
-          >
-            Todas
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={`btn btn-sm ${tab === 'active' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setTab('active')}
+            >
+              Activos
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${tab === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setTab('all')}
+            >
+              Todas
+            </button>
+          </div>
+          {canManage && tab === 'active' && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => { setErr(''); setMsg(''); setShowForm(true); }}
+            >
+              Nuevo paciente
+            </button>
+          )}
         </div>
       </div>
 
       {msg && <div className="alert alert-success">{msg}</div>}
-      {err && <div className="alert alert-error">{err}</div>}
-
-      {canManage && tab === 'active' && (
-        <form onSubmit={start} className="card card-pad space-y-4">
-          <h3 className="section-title">Ingresar paciente</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="field">
-              <label className="label">Paciente</label>
-              <select value={form.petId} onChange={(e) => setForm({ ...form, petId: e.target.value })} className="select" required>
-                <option value="">-- Paciente --</option>
-                {pets.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.species})</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label className="label">Veterinario (opcional)</label>
-              <select value={form.vetId} onChange={(e) => setForm({ ...form, vetId: e.target.value })} className="select">
-                <option value="">-- Sin asignar --</option>
-                {vets.map((v) => <option key={v.id} value={v.id}>{v.fullName}</option>)}
-              </select>
-            </div>
-            <div className="field sm:col-span-2">
-              <label className="label">Motivo de hospitalización</label>
-              <input placeholder="Motivo de hospitalización" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} className="input" required />
-            </div>
-            <div className="field sm:col-span-2">
-              <label className="label">Notas iniciales</label>
-              <input placeholder="Notas iniciales" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="input" />
-            </div>
-          </div>
-          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Ingresando…' : 'Ingresar'}</button>
-        </form>
-      )}
+      {err && !showForm && <div className="alert alert-error">{err}</div>}
 
       {tab === 'all' && (
         <div className="card card-pad">
@@ -199,11 +187,48 @@ export default function HospitalizationsPage() {
           key={h.id}
           h={h}
           canManage={canManage}
+          medItems={medItems}
           onChanged={reload}
           onNotify={notify}
           onError={reportError}
         />
       ))}
+
+      {showForm && canManage && (
+        <Modal title="Ingresar paciente" onClose={() => setShowForm(false)}>
+          <form onSubmit={start} className="space-y-3">
+            {err && <div className="alert alert-error">{err}</div>}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="field">
+                <label className="label">Paciente</label>
+                <select value={form.petId} onChange={(e) => setForm({ ...form, petId: e.target.value })} className="select" required>
+                  <option value="">-- Paciente --</option>
+                  {pets.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.species})</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">Veterinario (opcional)</label>
+                <select value={form.vetId} onChange={(e) => setForm({ ...form, vetId: e.target.value })} className="select">
+                  <option value="">-- Sin asignar --</option>
+                  {vets.map((v) => <option key={v.id} value={v.id}>{v.fullName}</option>)}
+                </select>
+              </div>
+              <div className="field sm:col-span-2">
+                <label className="label">Motivo de hospitalización</label>
+                <input placeholder="Motivo de hospitalización" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} className="input" required />
+              </div>
+              <div className="field sm:col-span-2">
+                <label className="label">Notas iniciales</label>
+                <input placeholder="Notas iniciales" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="input" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Ingresando…' : 'Ingresar'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -211,15 +236,18 @@ export default function HospitalizationsPage() {
 interface CardProps {
   h: Hospitalization;
   canManage: boolean;
+  medItems: InventoryItem[];
   onChanged: () => void;
   onNotify: (text: string) => void;
   onError: (text: string) => void;
 }
 
-function HospitalizationCard({ h, canManage, onChanged, onNotify, onError }: CardProps) {
+function HospitalizationCard({ h, canManage, medItems, onChanged, onNotify, onError }: CardProps) {
   const [detail, setDetail] = useState<HospitalizationDetail | null>(null);
   const [evoOpen, setEvoOpen] = useState(false);
   const [medOpen, setMedOpen] = useState(false);
+  const [medItemId, setMedItemId] = useState('');
+  const [medQuantity, setMedQuantity] = useState('1');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState<HospitalizationStatus | null>(null);
 
@@ -230,6 +258,9 @@ function HospitalizationCard({ h, canManage, onChanged, onNotify, onError }: Car
   useEffect(() => { loadDetail(); }, [loadDetail]);
 
   const terminal = isTerminal(h.status);
+  const selectedMedItem = medItemId && medItemId !== 'custom'
+    ? medItems.find((i) => i.id === Number(medItemId))
+    : undefined;
 
   const run = async (action: () => Promise<unknown>, successText: string) => {
     setBusy(true);
@@ -264,13 +295,21 @@ function HospitalizationCard({ h, canManage, onChanged, onNotify, onError }: Car
     const formEl = e.currentTarget;
     const data = new FormData(formEl);
     const at = data.get('administeredAt') as string | null;
+    const item = medItemId && medItemId !== 'custom'
+      ? medItems.find((i) => i.id === Number(medItemId))
+      : undefined;
+    const quantity = Number(medQuantity);
     await run(() => addMedication(h.id, {
-      medicationName: (data.get('medicationName') as string) || '',
+      medicationName: item ? item.name : ((data.get('medicationName') as string) || ''),
       dose: (data.get('dose') as string) || '',
       route: (data.get('route') as string) || '',
       administeredAt: at ? new Date(at).toISOString() : new Date().toISOString(),
+      inventoryItemId: item ? item.id : null,
+      quantity: item && quantity > 0 ? quantity : 1,
     }), 'Medicación administrada.');
     formEl.reset();
+    setMedItemId('');
+    setMedQuantity('1');
     setMedOpen(false);
     loadDetail();
   };
@@ -327,33 +366,88 @@ function HospitalizationCard({ h, canManage, onChanged, onNotify, onError }: Car
                 {TRANSITION_LABEL[target]}
               </button>
             ))}
-            <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setEvoOpen(!evoOpen)}>{evoOpen ? 'Cancelar' : '+ Evolución'}</button>
-            <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setMedOpen(!medOpen)}>{medOpen ? 'Cancelar' : '+ Medicación'}</button>
+            <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setEvoOpen(true)}>+ Evolución</button>
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled={busy}
+              onClick={() => { setMedItemId(''); setMedQuantity('1'); setMedOpen(true); }}
+            >
+              + Medicación
+            </button>
           </div>
         )}
 
         {evoOpen && !terminal && (
-          <form onSubmit={submitEvolution} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <input name="temperature" type="number" step="0.1" min={0} max={60} placeholder="Temperatura (°C)" className="input" />
-              <input name="heartRate" type="number" min={0} max={400} placeholder="FC (lpm)" className="input" />
-              <input name="respiratoryRate" type="number" min={0} max={200} placeholder="FR (rpm)" className="input" />
-            </div>
-            <input name="observations" placeholder="Observaciones" className="input" />
-            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>Guardar</button>
-          </form>
+          <Modal title="Registrar evolución" onClose={() => setEvoOpen(false)}>
+            <form onSubmit={submitEvolution} className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <input name="temperature" type="number" step="0.1" min={0} max={60} placeholder="Temperatura (°C)" className="input" />
+                <input name="heartRate" type="number" min={0} max={400} placeholder="FC (lpm)" className="input" />
+                <input name="respiratoryRate" type="number" min={0} max={200} placeholder="FR (rpm)" className="input" />
+              </div>
+              <input name="observations" placeholder="Observaciones" className="input" />
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" className="btn btn-secondary" onClick={() => setEvoOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={busy}>Guardar</button>
+              </div>
+            </form>
+          </Modal>
         )}
 
         {medOpen && !terminal && (
-          <form onSubmit={submitMedication} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input name="medicationName" placeholder="Medicamento *" className="input" required />
-              <input name="dose" placeholder="Dosis (ej: 1ml)" className="input" />
-              <input name="route" placeholder="Vía (ej: IV, oral)" className="input" />
-              <input name="administeredAt" type="datetime-local" defaultValue={nowLocal()} className="input" />
-            </div>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>Administrar</button>
-          </form>
+          <Modal title="Administrar medicación" onClose={() => setMedOpen(false)}>
+            <form onSubmit={submitMedication} className="space-y-3">
+              <div className="field">
+                <label className="label">Medicamento</label>
+                <select
+                  value={medItemId}
+                  onChange={(e) => setMedItemId(e.target.value)}
+                  className="select"
+                  required
+                >
+                  <option value="">-- Seleccionar del inventario --</option>
+                  {medItems.map((i) => (
+                    <option key={i.id} value={i.id} disabled={i.stockQuantity <= 0}>
+                      {i.name} ({i.code}) — stock: {i.stockQuantity} {i.unit}
+                    </option>
+                  ))}
+                  <option value="custom">Otro (escribir manualmente)</option>
+                </select>
+              </div>
+              {medItemId === 'custom' && (
+                <div className="field">
+                  <label className="label">Medicamento</label>
+                  <input name="medicationName" placeholder="Nombre del medicamento *" className="input" required />
+                </div>
+              )}
+              {selectedMedItem && (
+                <div className="field">
+                  <label className="label">Cantidad a descontar ({selectedMedItem.unit})</label>
+                  <input
+                    type="number"
+                    min={0.001}
+                    step="any"
+                    value={medQuantity}
+                    onChange={(e) => setMedQuantity(e.target.value)}
+                    className="input"
+                    required
+                  />
+                </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input name="dose" placeholder="Dosis (ej: 1ml)" className="input" />
+                <input name="route" placeholder="Vía (ej: IV, oral)" className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Fecha y hora</label>
+                <input name="administeredAt" type="datetime-local" defaultValue={nowLocal()} className="input" />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" className="btn btn-secondary" onClick={() => setMedOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={busy}>Administrar</button>
+              </div>
+            </form>
+          </Modal>
         )}
 
         <div className="grid gap-5 pt-1 lg:grid-cols-2">
@@ -387,7 +481,7 @@ function HospitalizationCard({ h, canManage, onChanged, onNotify, onError }: Car
                     <span className="text-xs text-slate-500">{new Date(m.administeredAt).toLocaleString()}</span>
                     {m.administeredByName && <span className="text-xs text-slate-400">{m.administeredByName}</span>}
                   </div>
-                  <p className="mt-1 text-sm text-slate-700"><strong>{m.medicationName}</strong>{m.dose && ` · ${m.dose}`}{m.route && ` · ${m.route}`}</p>
+                  <p className="mt-1 text-sm text-slate-700"><strong>{m.medicationName}</strong>{m.dose && ` · ${m.dose}`}{m.route && ` · ${m.route}`}{m.inventoryItemId != null && <span className="badge badge-info ml-2">Inventario</span>}</p>
                 </div>
               ))}
               {(detail?.medications ?? []).length === 0 && <p className="text-sm text-slate-400">Sin medicación administrada.</p>}

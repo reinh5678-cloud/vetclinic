@@ -208,4 +208,14 @@
   .table td {
     @apply px-4 py-3 align-middle text-slate-600;
   }
+
+  /* Texto largo en celdas: una línea con "…" que se expande y desplaza al hover.
+     El contenedor padre debe llevar la clase `group`. */
+  .cell-expand {
+    @apply truncate transition-all duration-150;
+  }
+
+  .group:hover .cell-expand {
+    @apply max-h-64 overflow-y-auto whitespace-normal text-clip;
+  }
 }

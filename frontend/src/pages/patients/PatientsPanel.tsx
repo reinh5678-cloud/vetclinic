@@ -15,6 +15,8 @@ import {
   type TutorBasic,
 } from '../../api/patients';
 import PatientDetail from './PatientDetail';
+import Modal from '../../components/Modal';
+import Pagination from '../../components/Pagination';
 
 interface FormState {
   name: string;
@@ -33,6 +35,8 @@ const emptyForm: FormState = {
   name: '', species: 'Perro', breed: '', birthDate: '', sex: 'Macho',
   weightKg: '1', color: '', tutorId: '', isSterilized: false, photoUrl: '',
 };
+
+const PAGE_SIZE = 10;
 
 function toInput(f: FormState): PetInput {
   return {
@@ -59,7 +63,8 @@ export default function PatientsPanel() {
   const [speciesFilter, setSpeciesFilter] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [sort, setSort] = useState<'name' | 'age' | 'weight'>('name');
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [detailPet, setDetailPet] = useState<Pet | null>(null);
+  const [page, setPage] = useState(1);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -88,6 +93,13 @@ export default function PatientsPanel() {
     else list.sort((a, b) => a.name.localeCompare(b.name));
     return list;
   }, [pets, sort]);
+
+  useEffect(() => { setPage(1); }, [search, speciesFilter, activeFilter, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pagedPets = sorted.slice(pageStart, pageStart + PAGE_SIZE);
 
   const notify = (text: string) => { setErr(''); setMsg(text); };
 
@@ -172,70 +184,12 @@ export default function PatientsPanel() {
           </select>
         </div>
         {canManage && (
-          <button onClick={showForm ? cancelForm : openCreate} className={showForm ? 'btn btn-secondary' : 'btn btn-primary'}>
-            {showForm ? 'Cancelar' : 'Nuevo paciente'}
-          </button>
+          <button onClick={openCreate} className="btn btn-primary">Nuevo paciente</button>
         )}
       </div>
 
-      {err && <div className="alert alert-error">{err}</div>}
+      {err && !showForm && <div className="alert alert-error">{err}</div>}
       {msg && <div className="alert alert-success">{msg}</div>}
-
-      {showForm && canManage && (
-        <form onSubmit={submit} className="card card-pad mb-4 space-y-3">
-          <h3 className="section-title">{editingId != null ? 'Editar paciente' : 'Nuevo paciente'}</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="field">
-              <label className="label">Nombre *</label>
-              <input required placeholder="Nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Especie</label>
-              <select value={form.species} onChange={(e) => setForm({ ...form, species: e.target.value as Species })} className="select">
-                {SPECIES.map((s) => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label className="label">Raza</label>
-              <input placeholder="Raza" value={form.breed} onChange={(e) => setForm({ ...form, breed: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Fecha de nacimiento</label>
-              <input type="date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Sexo</label>
-              <select value={form.sex} onChange={(e) => setForm({ ...form, sex: e.target.value as Sex })} className="select">
-                {SEXES.map((s) => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label className="label">Peso (kg)</label>
-              <input type="number" min="0" step="0.1" value={form.weightKg} onChange={(e) => setForm({ ...form, weightKg: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Color</label>
-              <input placeholder="Color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Tutor</label>
-              <select value={form.tutorId} onChange={(e) => setForm({ ...form, tutorId: e.target.value })} className="select">
-                <option value="">Sin tutor</option>
-                {tutors.map((t) => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label className="label">URL de foto</label>
-              <input placeholder="https://..." value={form.photoUrl} onChange={(e) => setForm({ ...form, photoUrl: e.target.value })} className="input" />
-            </div>
-          </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" className="checkbox" checked={form.isSterilized} onChange={(e) => setForm({ ...form, isSterilized: e.target.checked })} />
-            Esterilizado
-          </label>
-          <button type="submit" className="btn btn-primary">{editingId != null ? 'Guardar cambios' : 'Registrar paciente'}</button>
-        </form>
-      )}
 
       <div className="table-wrap">
         <table className="table">
@@ -254,13 +208,12 @@ export default function PatientsPanel() {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((p) => (
+            {pagedPets.map((p) => (
               <PetRow
                 key={p.id}
                 pet={p}
-                expanded={expandedId === p.id}
                 canManage={canManage}
-                onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                onOpenDetail={() => setDetailPet(p)}
                 onEdit={() => openEdit(p)}
                 onToggleActive={() => toggleActive(p)}
               />
@@ -273,59 +226,127 @@ export default function PatientsPanel() {
           </tbody>
         </table>
       </div>
+
+      {sorted.length > 0 && (
+        <div className="mt-4">
+          <Pagination
+            page={currentPage}
+            totalItems={sorted.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </div>
+      )}
+
+      {showForm && canManage && (
+        <Modal title={editingId != null ? 'Editar paciente' : 'Nuevo paciente'} onClose={cancelForm} wide>
+          <form onSubmit={submit} className="space-y-3">
+            {err && <div className="alert alert-error">{err}</div>}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="field">
+                <label className="label">Nombre *</label>
+                <input required placeholder="Nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Especie</label>
+                <select value={form.species} onChange={(e) => setForm({ ...form, species: e.target.value as Species })} className="select">
+                  {SPECIES.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">Raza</label>
+                <input placeholder="Raza" value={form.breed} onChange={(e) => setForm({ ...form, breed: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Fecha de nacimiento</label>
+                <input type="date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Sexo</label>
+                <select value={form.sex} onChange={(e) => setForm({ ...form, sex: e.target.value as Sex })} className="select">
+                  {SEXES.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">Peso (kg)</label>
+                <input type="number" min="0" step="0.1" value={form.weightKg} onChange={(e) => setForm({ ...form, weightKg: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Color</label>
+                <input placeholder="Color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Tutor</label>
+                <select value={form.tutorId} onChange={(e) => setForm({ ...form, tutorId: e.target.value })} className="select">
+                  <option value="">Sin tutor</option>
+                  {tutors.map((t) => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">URL de foto</label>
+                <input placeholder="https://..." value={form.photoUrl} onChange={(e) => setForm({ ...form, photoUrl: e.target.value })} className="input" />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="checkbox" checked={form.isSterilized} onChange={(e) => setForm({ ...form, isSterilized: e.target.checked })} />
+              Esterilizado
+            </label>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={cancelForm}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">{editingId != null ? 'Guardar cambios' : 'Registrar paciente'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {detailPet && (
+        <Modal title={`Ficha · ${detailPet.name}`} onClose={() => setDetailPet(null)} wide>
+          <PatientDetail pet={detailPet} />
+        </Modal>
+      )}
     </section>
   );
 }
 
 interface PetRowProps {
   pet: Pet;
-  expanded: boolean;
   canManage: boolean;
-  onToggle: () => void;
+  onOpenDetail: () => void;
   onEdit: () => void;
   onToggleActive: () => void;
 }
 
-function PetRow({ pet, expanded, canManage, onToggle, onEdit, onToggleActive }: PetRowProps) {
+function PetRow({ pet, canManage, onOpenDetail, onEdit, onToggleActive }: PetRowProps) {
   return (
-    <>
-      <tr className={pet.isActive ? undefined : 'opacity-60'}>
-        <td>
-          {pet.photoUrl
-            ? <img src={pet.photoUrl} alt={pet.name} className="inline-block h-10 w-10 rounded-lg object-cover ring-1 ring-slate-200" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            : <span className="text-slate-300">—</span>}
-        </td>
-        <td className="font-medium text-slate-800">{pet.name}</td>
-        <td className="text-center">{pet.species}</td>
-        <td className="text-center">{pet.breed || '—'}</td>
-        <td className="text-center">{pet.sex}</td>
-        <td className="text-center">{pet.ageYears != null ? pet.ageYears : '—'}</td>
-        <td className="text-center">{pet.weightKg} kg</td>
-        <td className="text-center">{pet.tutorName ?? '—'}</td>
-        <td className="text-center">
-          {pet.isActive
-            ? <span className="badge badge-success">Activo</span>
-            : <span className="badge badge-neutral">Inactivo</span>}
-        </td>
-        <td className="text-center">
-          <div className="flex flex-wrap justify-center gap-2">
-            <button onClick={onToggle} className="btn btn-secondary btn-xs">{expanded ? 'Ocultar' : 'Ficha'}</button>
-            {canManage && <button onClick={onEdit} className="btn btn-ghost btn-xs">Editar</button>}
-            {canManage && (
-              <button onClick={onToggleActive} className="btn btn-ghost btn-xs">
-                {pet.isActive ? 'Desactivar' : 'Activar'}
-              </button>
-            )}
-          </div>
-        </td>
-      </tr>
-      {expanded && (
-        <tr className="hover:bg-transparent">
-          <td colSpan={10} className="bg-slate-50/70 p-4">
-            <PatientDetail pet={pet} />
-          </td>
-        </tr>
-      )}
-    </>
+    <tr className={pet.isActive ? undefined : 'opacity-60'}>
+      <td>
+        {pet.photoUrl
+          ? <img src={pet.photoUrl} alt={pet.name} className="inline-block h-10 w-10 rounded-lg object-cover ring-1 ring-slate-200" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          : <span className="text-slate-300">—</span>}
+      </td>
+      <td className="font-medium text-slate-800">{pet.name}</td>
+      <td className="text-center">{pet.species}</td>
+      <td className="text-center">{pet.breed || '—'}</td>
+      <td className="text-center">{pet.sex}</td>
+      <td className="text-center">{pet.ageYears != null ? pet.ageYears : '—'}</td>
+      <td className="text-center">{pet.weightKg} kg</td>
+      <td className="text-center">{pet.tutorName ?? '—'}</td>
+      <td className="text-center">
+        {pet.isActive
+          ? <span className="badge badge-success">Activo</span>
+          : <span className="badge badge-neutral">Inactivo</span>}
+      </td>
+      <td className="text-center">
+        <div className="flex flex-wrap justify-center gap-2">
+          <button onClick={onOpenDetail} className="btn btn-secondary btn-xs">Ficha</button>
+          {canManage && <button onClick={onEdit} className="btn btn-ghost btn-xs">Editar</button>}
+          {canManage && (
+            <button onClick={onToggleActive} className="btn btn-ghost btn-xs">
+              {pet.isActive ? 'Desactivar' : 'Activar'}
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }

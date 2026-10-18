@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import Modal from '../../components/Modal';
 
 interface AdminUser {
   id: number;
@@ -20,10 +21,12 @@ interface Role {
 
 interface EditState {
   id: number;
+  username: string;
   fullName: string;
   email: string;
   roleId: number;
   isActive: boolean;
+  isSelf: boolean;
 }
 
 export default function UsersPanel() {
@@ -48,6 +51,13 @@ export default function UsersPanel() {
   const notify = (text: string) => {
     setErr('');
     setMsg(text);
+  };
+
+  const openCreate = () => {
+    setErr('');
+    setMsg('');
+    setForm({ username: '', password: '', fullName: '', email: '', roleId: '', pin: '' });
+    setShowCreate(true);
   };
 
   const createUser = async (e: FormEvent) => {
@@ -78,7 +88,15 @@ export default function UsersPanel() {
   const startEdit = (u: AdminUser) => {
     setErr('');
     setMsg('');
-    setEdit({ id: u.id, fullName: u.fullName, email: u.email, roleId: u.roleId, isActive: u.isActive });
+    setEdit({
+      id: u.id,
+      username: u.username,
+      fullName: u.fullName,
+      email: u.email,
+      roleId: u.roleId,
+      isActive: u.isActive,
+      isSelf: u.id === user?.id,
+    });
   };
 
   const saveEdit = async () => {
@@ -132,7 +150,7 @@ export default function UsersPanel() {
 
   return (
     <section className="card">
-      {err && <div className="alert alert-error m-4">{err}</div>}
+      {err && !showCreate && !edit && <div className="alert alert-error m-4">{err}</div>}
       {msg && <div className="alert alert-success m-4">{msg}</div>}
 
       <div className="card-header">
@@ -140,49 +158,10 @@ export default function UsersPanel() {
           <h3 className="section-title">Usuarios</h3>
           <p className="mt-0.5 text-xs text-slate-500">Cada usuario accede al sistema con un rol que define sus permisos.</p>
         </div>
-        <button onClick={() => setShowCreate((v) => !v)} className={showCreate ? 'btn btn-secondary btn-sm' : 'btn btn-primary btn-sm'}>
-          {showCreate ? 'Cancelar' : 'Nuevo usuario'}
-        </button>
+        <button onClick={openCreate} className="btn btn-primary btn-sm">Nuevo usuario</button>
       </div>
 
-      <div className="card-body space-y-4">
-        {showCreate && (
-          <form onSubmit={createUser} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="field">
-              <label className="label">Usuario</label>
-              <input required placeholder="Usuario" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Contraseña</label>
-              <input required type="password" placeholder="Contraseña (mín. 6)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Nombre completo</label>
-              <input placeholder="Nombre completo" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Email</label>
-              <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input" />
-            </div>
-            <div className="field">
-              <label className="label">Rol</label>
-              <select required value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value === '' ? '' : Number(e.target.value) })} className="select">
-                <option value="">Rol…</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="label">PIN (opcional)</label>
-              <input placeholder="PIN (opcional)" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} className="input" />
-            </div>
-            <div className="sm:col-span-2 lg:col-span-3">
-              <button type="submit" className="btn btn-primary">Crear usuario</button>
-            </div>
-          </form>
-        )}
-
+      <div className="card-body">
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -199,35 +178,6 @@ export default function UsersPanel() {
             <tbody>
               {users.map((u) => {
                 const isSelf = u.id === user?.id;
-                if (edit && edit.id === u.id) {
-                  return (
-                    <tr key={u.id}>
-                      <td className="text-slate-800">{u.username}{isSelf && ' (vos)'}</td>
-                      <td><input value={edit.fullName} onChange={(e) => setEdit({ ...edit, fullName: e.target.value })} className="input py-1" /></td>
-                      <td><input value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} className="input py-1" /></td>
-                      <td>
-                        <select value={edit.roleId} onChange={(e) => setEdit({ ...edit, roleId: Number(e.target.value) })} className="select py-1" disabled={isSelf}>
-                          {roles.map((r) => (
-                            <option key={r.id} value={r.id}>{r.name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td>
-                        <label className="flex items-center gap-2 text-xs text-slate-600">
-                          <input type="checkbox" className="checkbox" checked={edit.isActive} disabled={isSelf} onChange={(e) => setEdit({ ...edit, isActive: e.target.checked })} />
-                          Activo
-                        </label>
-                      </td>
-                      <td>{u.hasPin ? 'Sí' : '—'}</td>
-                      <td>
-                        <div className="flex gap-2">
-                          <button onClick={saveEdit} className="btn btn-primary btn-xs">Guardar</button>
-                          <button onClick={() => setEdit(null)} className="btn btn-secondary btn-xs">Cancelar</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }
                 return (
                   <tr key={u.id}>
                     <td className="font-medium text-slate-800">{u.username}{isSelf && <span className="ml-1 text-xs text-slate-400">(vos)</span>}</td>
@@ -252,6 +202,81 @@ export default function UsersPanel() {
           </table>
         </div>
       </div>
+
+      {showCreate && (
+        <Modal title="Nuevo usuario" onClose={() => setShowCreate(false)}>
+          <form onSubmit={createUser} className="space-y-3">
+            {err && <div className="alert alert-error">{err}</div>}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="field">
+                <label className="label">Usuario</label>
+                <input required placeholder="Usuario" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Contraseña</label>
+                <input required type="password" placeholder="Contraseña (mín. 6)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Nombre completo</label>
+                <input placeholder="Nombre completo" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Email</label>
+                <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Rol</label>
+                <select required value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value === '' ? '' : Number(e.target.value) })} className="select">
+                  <option value="">Rol…</option>
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">PIN (opcional)</label>
+                <input placeholder="PIN (opcional)" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} className="input" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">Crear usuario</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {edit && (
+        <Modal title={`Editar usuario · ${edit.username}`} onClose={() => setEdit(null)}>
+          <div className="space-y-3">
+            {err && <div className="alert alert-error">{err}</div>}
+            <div className="field">
+              <label className="label">Nombre completo</label>
+              <input value={edit.fullName} onChange={(e) => setEdit({ ...edit, fullName: e.target.value })} className="input" />
+            </div>
+            <div className="field">
+              <label className="label">Email</label>
+              <input type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} className="input" />
+            </div>
+            <div className="field">
+              <label className="label">Rol</label>
+              <select value={edit.roleId} onChange={(e) => setEdit({ ...edit, roleId: Number(e.target.value) })} className="select" disabled={edit.isSelf}>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" className="checkbox" checked={edit.isActive} disabled={edit.isSelf} onChange={(e) => setEdit({ ...edit, isActive: e.target.checked })} />
+              Activo
+            </label>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setEdit(null)}>Cancelar</button>
+              <button type="button" className="btn btn-primary" onClick={saveEdit}>Guardar</button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </section>
   );
 }

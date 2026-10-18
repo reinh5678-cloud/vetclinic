@@ -194,5 +194,6 @@ public class PatientService : IPatientService
         p.BirthDate.HasValue ? (int?)CalculateAge(p.BirthDate.Value) : null,
         p.IsSterilized, p.PhotoUrl,
         p.Tutor is null ? null : $"{p.Tutor.FirstName} {p.Tutor.LastName}",
+        p.Tutor is null ? null : p.Tutor.Phone,
         p.IsActive);
 }

@@ -16,4 +16,4 @@ public record UpdatePetRequest(string Name, Species Species, string Breed, DateT
 
 public record SetPetActiveRequest(bool Active);
 
-public record PetDto(int Id, string Name, string Species, string Breed, DateTime? BirthDate, string Sex, decimal WeightKg, string Color, int? TutorId, int? AgeYears, bool IsSterilized, string? PhotoUrl, string? TutorName, bool IsActive);
+public record PetDto(int Id, string Name, string Species, string Breed, DateTime? BirthDate, string Sex, decimal WeightKg, string Color, int? TutorId, int? AgeYears, bool IsSterilized, string? PhotoUrl, string? TutorName, string? TutorPhone, bool IsActive);
