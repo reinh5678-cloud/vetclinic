@@ -12,6 +12,7 @@ public class User : BaseEntity
     public int RoleId { get; set; }
     public Role? Role { get; set; }
     public string? PinAccess { get; set; }
+    public string? SecurityQuestionsJson { get; set; }
     public bool IsActive { get; set; } = true;
     public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 }

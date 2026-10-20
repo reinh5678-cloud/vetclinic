@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using VetClinic.Application.Common;
+using VetClinic.Application.DTOs;
 using VetClinic.Domain;
 using VetClinic.Domain.Entities;
 using VetClinic.Domain.Enums;
@@ -49,9 +51,9 @@ public static class SeedData
             var vetRole = await db.Roles.SingleAsync(r => r.Name == "Veterinario");
             var receptionRole = await db.Roles.SingleAsync(r => r.Name == "Recepcionista");
 
-            var admin = new User { Username = "admin", FullName = "Administrador", Email = "admin@vetclinic.local", RoleId = adminRole.Id, PinAccess = AdminPin, PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!") };
-            var reception = new User { Username = "recepcion", FullName = "Recepcionista", Email = "recepcion@vetclinic.local", RoleId = receptionRole.Id, PinAccess = ReceptionPin, PasswordHash = BCrypt.Net.BCrypt.HashPassword("Recep123!") };
-            var vet = new User { Username = "vet", FullName = "Dra. Maria Veterinaria", Email = "vet@vetclinic.local", RoleId = vetRole.Id, PinAccess = VetPin, PasswordHash = BCrypt.Net.BCrypt.HashPassword("Vet123!") };
+            var admin = new User { Username = "admin", FullName = "Administrador", Email = "admin@vetclinic.local", RoleId = adminRole.Id, PinAccess = AdminPin, PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!!"), SecurityQuestionsJson = BuildSecurityQuestionsJson((1, "max"), (2, "madrid")) };
+            var reception = new User { Username = "recepcion", FullName = "Recepcionista", Email = "recepcion@vetclinic.local", RoleId = receptionRole.Id, PinAccess = ReceptionPin, PasswordHash = BCrypt.Net.BCrypt.HashPassword("Recep123!!"), SecurityQuestionsJson = BuildSecurityQuestionsJson((1, "toby"), (2, "sevilla")) };
+            var vet = new User { Username = "vet", FullName = "Dra. Maria Veterinaria", Email = "vet@vetclinic.local", RoleId = vetRole.Id, PinAccess = VetPin, PasswordHash = BCrypt.Net.BCrypt.HashPassword("Vet123!!"), SecurityQuestionsJson = BuildSecurityQuestionsJson((1, "luna"), (2, "barcelona")) };
             db.Users.AddRange(admin, reception, vet);
 
             var tutor = new Tutor { FirstName = "Carlos", LastName = "Perez", Email = "carlos@example.com", Phone = "555-0100", Address = "Av. Principal 123", DocumentNumber = "12345678A" };
@@ -129,7 +131,59 @@ public static class SeedData
         else
         {
             await EnsureDemoPinsAsync(db);
+            await EnsureDemoSecurityQuestionsAsync(db);
+            await EnsureDemoPasswordsAsync(db);
         }
+    }
+
+    private static string BuildSecurityQuestionsJson(params (int QuestionId, string Answer)[] answers) =>
+        JsonSerializer.Serialize(
+            answers
+                .Select(a => new StoredSecurityQuestion(a.QuestionId, BCrypt.Net.BCrypt.HashPassword(SecurityQuestions.NormalizeAnswer(a.Answer))))
+                .ToList());
+
+    private static async Task EnsureDemoSecurityQuestionsAsync(VetClinicDbContext db)
+    {
+        var questions = new Dictionary<string, (int QuestionId, string Answer)[]>
+        {
+            ["admin"] = new[] { (1, "max"), (2, "madrid") },
+            ["vet"] = new[] { (1, "luna"), (2, "barcelona") },
+            ["recepcion"] = new[] { (1, "toby"), (2, "sevilla") }
+        };
+
+        foreach (var username in questions.Keys)
+        {
+            var user = await db.Users.SingleOrDefaultAsync(u => u.Username == username);
+            if (user is not null && string.IsNullOrEmpty(user.SecurityQuestionsJson))
+            {
+                user.SecurityQuestionsJson = BuildSecurityQuestionsJson(questions[username]);
+            }
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsureDemoPasswordsAsync(VetClinicDbContext db)
+    {
+        var upgrades = new Dictionary<string, (string OldPassword, string NewPassword)>
+        {
+            ["admin"] = ("Admin123!", "Admin123!!"),
+            ["vet"] = ("Vet123!", "Vet123!!"),
+            ["recepcion"] = ("Recep123!", "Recep123!!")
+        };
+
+        foreach (var username in upgrades.Keys)
+        {
+            var user = await db.Users.SingleOrDefaultAsync(u => u.Username == username);
+            if (user is null)
+                continue;
+
+            var (oldPassword, newPassword) = upgrades[username];
+            if (BCrypt.Net.BCrypt.Verify(oldPassword, user.PasswordHash))
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        }
+
+        await db.SaveChangesAsync();
     }
 
     private static async Task EnsureDemoPinsAsync(VetClinicDbContext db)

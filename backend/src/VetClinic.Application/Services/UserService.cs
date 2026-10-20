@@ -157,5 +157,6 @@ public class UserService : IUserService
         user.RoleId,
         user.Role?.Name ?? string.Empty,
         user.IsActive,
-        !string.IsNullOrEmpty(user.PinAccess));
+        !string.IsNullOrEmpty(user.PinAccess),
+        !string.IsNullOrEmpty(user.SecurityQuestionsJson));
 }

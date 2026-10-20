@@ -87,6 +87,11 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<VetClinicDbContext>();
     db.Database.Migrate();
     await SeedData.SeedAsync(db);
+
+    var lockout = scope.ServiceProvider.GetRequiredService<VetClinic.Application.Interfaces.IRecoveryLockout>();
+    var settingsService = scope.ServiceProvider.GetRequiredService<VetClinic.Application.Interfaces.ISettingsService>();
+    var security = await settingsService.GetSecurityAsync();
+    lockout.SetMaxAttempts(security.MaxFailedAttempts);
 }
 
 if (app.Environment.IsDevelopment())

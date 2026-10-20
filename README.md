@@ -4,6 +4,153 @@ Sistema **monopuesto** (un solo equipo) para gestionar una clínica veterinaria:
 
 Proyecto demostrativo con arquitectura por capas y propósitos de aprendizaje.
 
+## Credenciales de acceso (demo)
+
+| Usuario | Contraseña | Rol | PIN |
+|---|---|---|---|
+| `admin` | `Admin123!!` | Administrador (reportes) | `1111` |
+| `vet` | `Vet123!!` | Veterinario (clínico, inventario) | `2222` |
+| `recepcion` | `Recep123!!` | Recepción (agenda, pacientes, facturas) | `3333` |
+
+> App: `http://localhost:5173` · API: `http://localhost:8080` · Swagger: `http://localhost:8080/swagger`
+>
+> Las credenciales se crean con el *seed* al arrancar la API sobre una base vacía. Para **bases ya existentes**, el arranque actualiza automáticamente las contraseñas demo antiguas (`Admin123!`/`Vet123!`/`Recep123!`) a las nuevas (`…!!`) de forma idempotente.
+>
+> **Recuperación de contraseña**: cada usuario demo tiene cargadas 2 preguntas de seguridad (autoservicio desde «¿Olvidaste tu contraseña?» en el login) y el rol Administrador puede restablecer la contraseña de cualquier usuario desde **Configuración → Usuarios**. Tras 5 intentos fallidos de recuperación, la cuenta se bloquea 15 min.
+
+## Instalación paso a paso
+
+Guía completa para dejar el sistema funcionando desde cero en un equipo Windows (aplica igual en macOS/Linux cambiando los comandos de shell).
+
+### 1. Requisitos previos
+
+| Herramienta | Versión | Cómo verificar | Descarga |
+|---|---|---|---|
+| **Docker Desktop** | 4.x o superior | `docker --version` y `docker compose version` | https://www.docker.com/products/docker-desktop |
+| **Node.js** | 20 LTS o superior | `node --version` y `npm --version` | https://nodejs.org |
+| **Git** | cualquiera reciente | `git --version` | https://git-scm.com |
+
+> El **backend y PostgreSQL corren en Docker**; el **frontend** (Vite) corre en Node local para tener *hot-reload*. No necesitas el SDK de .NET ni PostgreSQL instalados en el equipo.
+
+Antes de continuar, **abre Docker Desktop y espera a que el motor esté en ejecución** (icono de ballena estable). Verifícalo con:
+
+```bash
+docker info
+```
+
+### 2. Clonar el repositorio
+
+```bash
+git clone <url-del-repositorio> vetclinic
+cd vetclinic
+```
+
+### 3. Configurar variables de entorno (`.env`)
+
+La cadena de conexión y la clave `Jwt:Key` **no se versionan**. Crea el archivo `.env` a partir de la plantilla:
+
+```bash
+# Windows PowerShell
+Copy-Item .env.example .env
+
+# macOS / Linux
+cp .env.example .env
+```
+
+Contenido de `.env` (ajusta si lo deseas):
+
+```env
+POSTGRES_DB=vetclinic
+POSTGRES_USER=vetapp
+POSTGRES_PASSWORD=vetpass123
+
+# Clave de firma JWT (mínimo 32 caracteres). Cámbiala en producción.
+JWT_KEY=SuperSecretKey_VetClinic_2026_CambiarEnProduccion_MustBeAtLeast32Chars
+```
+
+> **Importante:** el backend **falla al arrancar** si `JWT_KEY` falta o tiene menos de 32 caracteres.
+
+### 4. Levantar backend + base de datos (Docker)
+
+Construye la imagen de la API y arranca PostgreSQL y la API en segundo plano:
+
+```bash
+docker compose up -d --build
+```
+
+Esto descarga `postgres:16`, compila la imagen .NET (multi-stage `sdk → aspnet`) y arranca ambos contenedores. La **API aplica las migraciones y el seed automáticamente** al iniciar (no hay paso manual de base de datos).
+
+Comprueba que quedaron arriba y sanos:
+
+```bash
+docker compose ps
+```
+
+| Servicio | URL | Notas |
+|---|---|---|
+| API .NET | http://localhost:8080 | Publicado por el contenedor |
+| Swagger (solo Development) | http://localhost:8080/swagger | Explorar/probar endpoints |
+| PostgreSQL 16 | `localhost:5432` | Contenedor `vetclinic-postgres` |
+
+Verifica el arranque correcto de la API:
+
+```bash
+docker compose logs -f api
+# Esperado: "Now listening on: http://[::]:8080" y "Application started."
+```
+
+> La primera vez el `--build` tarda unos minutos (restaura paquetes NuGet). Las siguientes veces puedes usar `docker compose up -d` sin `--build`.
+
+### 5. Levantar el frontend (Node local)
+
+En **otra terminal** (deja Docker corriendo):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Abre **http://localhost:5173** en el navegador. El proxy de Vite (`frontend/vite.config.ts`) reenvía `/api` a `http://localhost:8080`, así que **no hay que configurar nada más**.
+
+Inicia sesión con las **[credenciales demo](#credenciales-de-acceso-demo)** (`admin` / `Admin123!!`).
+
+### 6. Verificación rápida (opcional)
+
+```bash
+# El API responde y la autenticación funciona
+curl -X POST http://localhost:8080/api/auth/login ^
+  -H "Content-Type: application/json" ^
+  -d "{\"username\":\"admin\",\"password\":\"Admin123!!\"}"
+# Debe devolver un JSON con "token" y los datos del usuario.
+```
+
+### 7. Detener / reiniciar el sistema
+
+```bash
+# Detener todo (conserva los datos de la BD)
+docker compose down
+
+# Volver a arrancar
+docker compose up -d
+cd frontend && npm run dev
+
+# Reconstruir solo la API tras cambios en el backend
+docker compose up -d --build api
+```
+
+### Solución de problemas (instalación)
+
+| Síntoma | Causa / solución |
+|---|---|
+| `Jwt:Key` inválida al arrancar la API | `JWT_KEY` falta o tiene < 32 caracteres en `.env`. |
+| La API no conecta a la BD | Espera a que Postgres esté `healthy` (`docker compose ps`); el host dentro de Docker es `postgres`, no `localhost`. |
+| Puerto `8080` o `5173` ocupado | Detén el proceso que lo usa, o no ejecutes la API a la vez en Docker y con el SDK. |
+| Frontend sin datos (`/api` falla) | La API no está arriba; revisa `docker compose logs -f api`. |
+| Quiero empezar de cero (borrar datos) | `docker compose down -v` elimina el volumen de PostgreSQL. |
+
+> **Arranque local sin Docker (opcional, solo API):** si prefieres correr la API con el SDK (`dotnet run`) contra el PostgreSQL en Docker, copia `backend/src/VetClinic.Api/appsettings.local.example.json` a `appsettings.local.json` y ejecuta `dotnet run --project backend/src/VetClinic.Api --urls http://localhost:8080`. **No uses Docker y SDK a la vez** para la API (el puerto `8080` quedaría ocupado). Con Docker la conexión usa el host `postgres`; con el SDK debe usar `localhost`.
+
 ## Stack
 
 | Capa | Tecnología |
@@ -49,27 +196,15 @@ vetclinic/
 
 ## Puesta en marcha
 
-Requisitos: **Docker Desktop** y **Node 20+**. El **backend y PostgreSQL corren en Docker**; el frontend (Vite) corre en Node local para tener *hot-reload*.
+Instalación rápida (detalle completo en **[Instalación paso a paso](#instalación-paso-a-paso)**):
 
 ```bash
-# 1) Configuración (opcional). Copia la plantilla y ajusta los valores.
-#    docker compose lee estas variables automáticamente.
-cp .env.example .env
-
-# 2) Backend + base de datos: construye la imagen de la API y arranca PostgreSQL y la API.
-docker compose up -d --build
-# API:     http://localhost:8080
-# Swagger: http://localhost:8080/swagger
-# (la API aplica migraciones y seed automáticamente al arrancar)
-
-# 3) Frontend (Node local)
-cd frontend
-npm install
-npm run dev
-# App: http://localhost:5173
+cp .env.example .env            # 1) configuración (Windows: Copy-Item)
+docker compose up -d --build    # 2) API + PostgreSQL (migraciones y seed automáticos)
+cd frontend && npm install && npm run dev   # 3) frontend en http://localhost:5173
 ```
 
-El proxy de Vite (`frontend/vite.config.ts`) reenvía `/api` a `http://localhost:8080`, que es el puerto que publica el contenedor de la API; no hay que cambiar nada.
+Requisitos: **Docker Desktop** y **Node 20+**. El **backend y PostgreSQL corren en Docker**; el frontend (Vite) corre en Node local para tener *hot-reload*. El proxy de Vite (`frontend/vite.config.ts`) reenvía `/api` a `http://localhost:8080`, que es el puerto que publica el contenedor de la API; no hay que cambiar nada.
 
 ### Comandos útiles (backend en Docker)
 
@@ -86,11 +221,7 @@ docker compose up -d --build api   # reconstruir tras cambios en el backend
 
 ### Usuarios demo (seed)
 
-| Usuario | Contraseña | Rol |
-|---|---|---|
-| `admin` | `Admin123!` | Administrador (reportes) |
-| `vet` | `Vet123!` | Veterinario (clínico, inventario) |
-| `recepcion` | `Recep123!` | Recepción (agenda, pacientes, facturas) |
+Ver la tabla en **[Credenciales de acceso (demo)](#credenciales-de-acceso-demo)**, al inicio de este documento. Se siembran al arrancar la API sobre una base vacía (`admin`/`vet`/`recepcion`) con sus PIN y preguntas de seguridad.
 
 ## Capas y flujo de datos
 

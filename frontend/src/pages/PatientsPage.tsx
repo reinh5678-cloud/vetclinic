@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PatientsPanel from './patients/PatientsPanel';
 import TutorsPanel from './patients/TutorsPanel';
 import VaccinesPanel from './patients/VaccinesPanel';
@@ -11,8 +11,20 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
+const isTabId = (value: string | null): value is TabId =>
+  value != null && TABS.some((t) => t.id === value);
+
 export default function PatientsPage() {
-  const [tab, setTab] = useState<TabId>('pacientes');
+  // La pestaña vive en la URL para poder llegar con un enlace directo
+  // (p. ej. desde la tarjeta "Clientes" del dashboard).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: TabId = isTabId(searchParams.get('tab')) ? (searchParams.get('tab') as TabId) : 'pacientes';
+
+  const selectTab = (id: TabId) => {
+    const p = new URLSearchParams(searchParams);
+    p.set('tab', id);
+    setSearchParams(p, { replace: true });
+  };
 
   return (
     <div className="page">
@@ -27,7 +39,7 @@ export default function PatientsPage() {
         {TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => selectTab(t.id)}
             className={`-mb-px cursor-pointer border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               tab === t.id
                 ? 'border-teal-700 text-teal-800'

@@ -12,6 +12,7 @@ interface AdminUser {
   role: string;
   isActive: boolean;
   hasPin: boolean;
+  hasSecurityQuestions: boolean;
 }
 
 interface Role {
@@ -40,6 +41,9 @@ export default function UsersPanel() {
   const [form, setForm] = useState({ username: '', password: '', fullName: '', email: '', roleId: '' as number | '', pin: '' });
 
   const [edit, setEdit] = useState<EditState | null>(null);
+  const [resetUser, setResetUser] = useState<AdminUser | null>(null);
+  const [resetForm, setResetForm] = useState({ password: '', confirm: '' });
+  const [savingReset, setSavingReset] = useState(false);
 
   const loadUsers = () => api<AdminUser[]>('/settings/users').then(setUsers).catch((e) => setErr((e as Error).message));
 
@@ -122,15 +126,33 @@ export default function UsersPanel() {
   };
 
   const resetPassword = async (u: AdminUser) => {
-    const password = window.prompt(`Nueva contraseña para ${u.username} (mínimo 6 caracteres):`);
-    if (password === null) return;
     setErr('');
     setMsg('');
+    setResetForm({ password: '', confirm: '' });
+    setResetUser(u);
+  };
+
+  const submitResetPassword = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!resetUser) return;
+    setErr('');
+    setMsg('');
+    if (resetForm.password !== resetForm.confirm) {
+      setErr('La contraseña y su confirmación no coinciden.');
+      return;
+    }
+    setSavingReset(true);
     try {
-      await api(`/settings/users/${u.id}/password`, { method: 'POST', body: JSON.stringify({ password }) });
-      notify(`Contraseña actualizada para ${u.username}.`);
+      await api(`/settings/users/${resetUser.id}/password`, {
+        method: 'POST',
+        body: JSON.stringify({ password: resetForm.password }),
+      });
+      notify(`Contraseña actualizada para ${resetUser.username}.`);
+      setResetUser(null);
     } catch (ex) {
       setErr((ex as Error).message);
+    } finally {
+      setSavingReset(false);
     }
   };
 
@@ -172,6 +194,7 @@ export default function UsersPanel() {
                 <th>Rol</th>
                 <th>Estado</th>
                 <th>PIN</th>
+                <th>Recuperación</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -188,6 +211,11 @@ export default function UsersPanel() {
                       <span className={`badge ${u.isActive ? 'badge-success' : 'badge-neutral'}`}>{u.isActive ? 'Activo' : 'Inactivo'}</span>
                     </td>
                     <td>{u.hasPin ? 'Sí' : '—'}</td>
+                    <td>
+                      <span className={`badge ${u.hasSecurityQuestions ? 'badge-success' : 'badge-neutral'}`}>
+                        {u.hasSecurityQuestions ? 'Preguntas' : '—'}
+                      </span>
+                    </td>
                     <td>
                       <div className="flex flex-wrap gap-2">
                         <button onClick={() => startEdit(u)} className="btn btn-secondary btn-xs">Editar</button>
@@ -241,6 +269,45 @@ export default function UsersPanel() {
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancelar</button>
               <button type="submit" className="btn btn-primary">Crear usuario</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {resetUser && (
+        <Modal title={`Restablecer contraseña · ${resetUser.username}`} onClose={() => setResetUser(null)}>
+          <form onSubmit={submitResetPassword} className="space-y-3">
+            {err && <div className="alert alert-error">{err}</div>}
+            <p className="text-sm text-slate-500">
+              Define una nueva contraseña para <span className="font-medium text-slate-700">{resetUser.username}</span>.
+            </p>
+            <div className="field">
+              <label className="label">Nueva contraseña</label>
+              <input
+                type="password"
+                value={resetForm.password}
+                onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })}
+                autoComplete="new-password"
+                required
+                className="input"
+              />
+            </div>
+            <div className="field">
+              <label className="label">Confirmar nueva contraseña</label>
+              <input
+                type="password"
+                value={resetForm.confirm}
+                onChange={(e) => setResetForm({ ...resetForm, confirm: e.target.value })}
+                autoComplete="new-password"
+                required
+                className="input"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setResetUser(null)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={savingReset}>
+                {savingReset ? 'Guardando…' : 'Restablecer'}
+              </button>
             </div>
           </form>
         </Modal>

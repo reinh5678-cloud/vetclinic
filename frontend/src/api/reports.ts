@@ -33,6 +33,7 @@ export interface RevenuePoint {
   year: number;
   month: number;
   total: number;
+  invoicesCount: number;
 }
 
 export interface RevenueReport {

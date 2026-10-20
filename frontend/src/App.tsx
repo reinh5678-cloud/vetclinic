@@ -15,6 +15,7 @@ import LotsPage from './pages/inventory/LotsPage';
 import AdjustmentsPage from './pages/inventory/AdjustmentsPage';
 import KardexPage from './pages/inventory/KardexPage';
 import InvoicesPage from './pages/InvoicesPage';
+import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import ClinicPanel from './pages/settings/ClinicPanel';
 import BillingPanel from './pages/settings/BillingPanel';
@@ -51,6 +52,7 @@ function Router() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth><Layout /></RequireAuth>}>
         <Route path="/" element={home} />
+        <Route path="/perfil" element={<ProfilePage />} />
         <Route path="/pacientes" element={<RequirePermission permission="patients.view"><PatientsPage /></RequirePermission>} />
         <Route path="/agenda" element={<RequirePermission permission="appointments.view"><AppointmentsPage /></RequirePermission>} />
         <Route path="/historia" element={<RequirePermission permission="medical.view"><MedicalHistoryPage /></RequirePermission>} />

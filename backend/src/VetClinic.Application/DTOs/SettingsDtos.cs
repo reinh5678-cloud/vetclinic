@@ -1,6 +1,6 @@
 namespace VetClinic.Application.DTOs;
 
-public record AdminUserDto(int Id, string Username, string FullName, string Email, int RoleId, string Role, bool IsActive, bool HasPin);
+public record AdminUserDto(int Id, string Username, string FullName, string Email, int RoleId, string Role, bool IsActive, bool HasPin, bool HasSecurityQuestions);
 
 public record RoleDto(int Id, string Name);
 

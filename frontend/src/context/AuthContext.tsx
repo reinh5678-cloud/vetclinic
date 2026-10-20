@@ -24,6 +24,7 @@ interface AuthContextValue {
   login: (username: string, password: string) => Promise<void>;
   loginByPin: (pin: string) => Promise<void>;
   logout: () => void;
+  updateUser: (user: User) => void;
   loading: boolean;
 }
 
@@ -69,14 +70,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPermissions([]);
   }, []);
 
+  const updateUser = useCallback(
+    (next: User) => {
+      const token = getToken();
+      if (token) setSession(token, next, permissions);
+      setUser(next);
+    },
+    [permissions],
+  );
+
   const can = useCallback(
     (permission: string) => permissions.includes(permission),
     [permissions],
   );
 
   const value = useMemo(
-    () => ({ user, permissions, can, login, loginByPin, logout, loading }),
-    [user, permissions, can, login, loginByPin, logout, loading],
+    () => ({ user, permissions, can, login, loginByPin, logout, updateUser, loading }),
+    [user, permissions, can, login, loginByPin, logout, updateUser, loading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

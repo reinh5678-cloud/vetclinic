@@ -1,3 +1,5 @@
+import { formatCurrency } from '../../lib/format';
+
 interface TrendPoint {
   label: string;
   value: number;
@@ -27,12 +29,12 @@ export default function TrendChart({ points, height = 180 }: TrendChartProps) {
           return (
             <div key={`${p.label}-${i}`} className="flex min-w-0 flex-1 flex-col items-center gap-1">
               <span className="text-[10px] font-medium text-slate-400">
-                {p.value > 0 ? `$${Math.round(p.value).toLocaleString('es-AR')}` : ''}
+                {p.value > 0 ? formatCurrency(p.value) : ''}
               </span>
               <div
                 className="flex w-full items-end"
                 style={{ height: height - 34 }}
-                title={`${p.label}: $${p.value.toLocaleString('es-AR')}`}
+                title={`${p.label}: ${formatCurrency(p.value)}`}
               >
                 <div
                   className="w-full rounded-t-md bg-gradient-to-t from-teal-600 to-teal-400 transition-all"

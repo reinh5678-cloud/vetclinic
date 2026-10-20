@@ -18,11 +18,13 @@ public class SettingsService : ISettingsService
 
     private readonly IRepository<AppSetting> _settings;
     private readonly IConfiguration _configuration;
+    private readonly IRecoveryLockout _lockout;
 
-    public SettingsService(IRepository<AppSetting> settings, IConfiguration configuration)
+    public SettingsService(IRepository<AppSetting> settings, IConfiguration configuration, IRecoveryLockout lockout)
     {
         _settings = settings;
         _configuration = configuration;
+        _lockout = lockout;
     }
 
     // ---------- Clínica ----------
@@ -153,6 +155,7 @@ public class SettingsService : ISettingsService
             throw new ArgumentException("La duración de sesión debe estar entre 1 y 168 horas.");
         if (dto.MaxFailedAttempts < 1 || dto.MaxFailedAttempts > 20)
             throw new ArgumentException("Los intentos fallidos permitidos deben estar entre 1 y 20.");
+        _lockout.SetMaxAttempts(dto.MaxFailedAttempts);
         return SaveSectionAsync(AppSetting.Sections.Security, dto, ct);
     }
 

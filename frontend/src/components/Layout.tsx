@@ -50,6 +50,11 @@ const icons: Record<string, JSX.Element> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
+  Perfil: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a7.5 7.5 0 0115 0v.75H4.5v-.75z" />
+    </svg>
+  ),
 };
 
 export default function Layout() {
@@ -69,6 +74,7 @@ export default function Layout() {
     { to: '/inventario', label: 'Inventario', permission: 'inventory.view' },
     { to: '/facturacion', label: 'Facturación', permission: 'invoices.view' },
     { to: '/configuracion', label: 'Configuración', permission: 'reports.view', role: 'Administrador' },
+    { to: '/perfil', label: 'Perfil' },
   ];
   const nav = allNav.filter((n) => (!n.permission || can(n.permission)) && (!n.role || n.role === user?.role));
 
@@ -147,13 +153,19 @@ export default function Layout() {
         {/* Bottom: user info + logout */}
         <div className="border-t border-teal-800/70 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-teal-700 text-xs font-bold ring-1 ring-white/10">
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{user?.fullName}</p>
-              <p className="truncate text-xs text-teal-300/70">{user?.role}</p>
-            </div>
+            <NavLink
+              to="/perfil"
+              title="Mi perfil"
+              className="-mx-1 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 transition-colors hover:bg-white/5"
+            >
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-teal-700 text-xs font-bold ring-1 ring-white/10">
+                {initials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{user?.fullName}</p>
+                <p className="truncate text-xs text-teal-300/70">{user?.role}</p>
+              </div>
+            </NavLink>
             <button
               onClick={logout}
               title="Salir"

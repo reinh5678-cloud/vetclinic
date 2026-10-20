@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using VetClinic.Application.DTOs;
 using VetClinic.Application.Interfaces;
@@ -78,7 +79,7 @@ public class ReportService : IReportService
 
         var byMonth = paid
             .GroupBy(i => new { i.IssueDate.Year, i.IssueDate.Month })
-            .Select(g => new RevenuePointDto(g.Key.Year, g.Key.Month, g.Sum(x => x.Total)))
+            .Select(g => new RevenuePointDto(g.Key.Year, g.Key.Month, g.Sum(x => x.Total), g.Count()))
             .OrderBy(x => x.Year).ThenBy(x => x.Month)
             .ToList();
 
@@ -151,6 +152,77 @@ public class ReportService : IReportService
             unpaid.Count,
             unpaid.Sum());
     }
+
+    public async Task<ClinicalTrendDto> GetHospitalizationTrendAsync(DateTime from, DateTime to, CancellationToken ct = default)
+    {
+        var start = from.Date;
+        var end = to.Date;
+        if (end < start)
+            (start, end) = (end, start);
+
+        // El bucketing se adapta al rango para que la línea sea legible: por día en
+        // ventanas cortas, por semana en rangos intermedios y por mes en rangos largos.
+        var span = (end - start).TotalDays;
+        var granularity = span <= 45
+            ? ClinicalGranularity.Dia
+            : span <= 200
+                ? ClinicalGranularity.Semana
+                : ClinicalGranularity.Mes;
+
+        var starts = await _hospitalizations.Query()
+            .Where(h => h.StartDate >= from && h.StartDate <= to)
+            .Select(h => h.StartDate)
+            .ToListAsync(ct);
+
+        // La serie arranca en el primer límite natural (día / lunes / día 1) que cae dentro
+        // del rango, para que el eje quede alineado y no muestre un tramo parcial anterior a `from`.
+        var cursor = BucketStart(start, granularity);
+        if (cursor < start)
+            cursor = NextBucket(cursor, granularity);
+
+        var buckets = new Dictionary<DateTime, int>();
+        for (; cursor <= end; cursor = NextBucket(cursor, granularity))
+            buckets[cursor] = 0;
+
+        foreach (var date in starts)
+        {
+            var key = BucketStart(date, granularity);
+            if (buckets.TryGetValue(key, out var current))
+                buckets[key] = current + 1;
+        }
+
+        var points = buckets
+            .OrderBy(b => b.Key)
+            .Select(b => new ClinicalTrendPointDto(FormatLabel(b.Key, granularity), b.Key, b.Value))
+            .ToList();
+
+        return new ClinicalTrendDto(granularity, points.Sum(p => p.Count), points);
+    }
+
+    private static DateTime BucketStart(DateTime date, ClinicalGranularity granularity) => granularity switch
+    {
+        ClinicalGranularity.Semana => StartOfWeek(date),
+        ClinicalGranularity.Mes => new DateTime(date.Year, date.Month, 1),
+        _ => date.Date
+    };
+
+    private static DateTime NextBucket(DateTime start, ClinicalGranularity granularity) => granularity switch
+    {
+        ClinicalGranularity.Semana => start.AddDays(7),
+        ClinicalGranularity.Mes => start.AddMonths(1),
+        _ => start.AddDays(1)
+    };
+
+    private static DateTime StartOfWeek(DateTime date)
+    {
+        var offset = ((int)date.DayOfWeek + 6) % 7; // lunes = 0
+        return date.Date.AddDays(-offset);
+    }
+
+    private static string FormatLabel(DateTime bucket, ClinicalGranularity granularity) =>
+        granularity == ClinicalGranularity.Mes
+            ? bucket.ToString("MMM", CultureInfo.GetCultureInfo("es-AR"))
+            : bucket.ToString("dd/MM");
 
     public async Task<IReadOnlyList<LowStockItemDto>> GetLowStockAsync(CancellationToken ct = default) =>
         await _inventory.Query()

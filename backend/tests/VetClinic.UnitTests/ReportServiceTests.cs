@@ -1,5 +1,6 @@
 using MockQueryable.Moq;
 using Moq;
+using VetClinic.Application.DTOs;
 using VetClinic.Application.Interfaces;
 using VetClinic.Application.Services;
 using VetClinic.Domain.Entities;
@@ -111,6 +112,9 @@ public class ReportServiceTests
         Assert.Equal(150m, result.ByMonth[0].Total);
         Assert.Equal(1, result.ByMonth[0].Month);
         Assert.Equal(30m, result.ByMonth[1].Total);
+        // El conteo alimenta el gráfico de barras de facturas por mes.
+        Assert.Equal(2, result.ByMonth[0].InvoicesCount);
+        Assert.Equal(1, result.ByMonth[1].InvoicesCount);
     }
 
     [Fact]
@@ -173,6 +177,85 @@ public class ReportServiceTests
         Assert.Equal(2, result.PendingReminders);
         Assert.Equal(2, result.UnpaidInvoicesCount);
         Assert.Equal(150m, result.UnpaidInvoicesAmount);
+    }
+
+    [Fact]
+    public async Task GetHospitalizationTrendAsync_Should_Agrupar_Por_Dia_Y_Completar_Dias_Vacios()
+    {
+        var from = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 3, 5, 0, 0, 0, DateTimeKind.Utc);
+
+        var hospitalizations = new List<Hospitalization>
+        {
+            new() { StartDate = new DateTime(2026, 3, 1, 8, 0, 0, DateTimeKind.Utc) },
+            new() { StartDate = new DateTime(2026, 3, 1, 20, 0, 0, DateTimeKind.Utc) },
+            new() { StartDate = new DateTime(2026, 3, 4, 10, 0, 0, DateTimeKind.Utc) },
+            // Fuera del rango: no debe contar.
+            new() { StartDate = new DateTime(2026, 2, 28, 10, 0, 0, DateTimeKind.Utc) }
+        };
+
+        var service = CreateService(hospitalizations: hospitalizations);
+
+        var result = await service.GetHospitalizationTrendAsync(from, to);
+
+        Assert.Equal(ClinicalGranularity.Dia, result.Granularity);
+        Assert.Equal(3, result.Total);
+        Assert.Equal(5, result.Points.Count);
+        Assert.Equal(new[] { 2, 0, 0, 1, 0 }, result.Points.Select(p => p.Count));
+        Assert.Equal("01/03", result.Points[0].Label);
+        Assert.Equal(new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), result.Points[0].Start);
+    }
+
+    [Fact]
+    public async Task GetHospitalizationTrendAsync_Should_Agrupar_Por_Semana_En_Rangos_Medios()
+    {
+        var from = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 4, 30, 0, 0, 0, DateTimeKind.Utc);
+
+        var hospitalizations = new List<Hospitalization>
+        {
+            // Lunes 5 y lunes 12 de enero: semanas distintas.
+            new() { StartDate = new DateTime(2026, 1, 5, 9, 0, 0, DateTimeKind.Utc) },
+            new() { StartDate = new DateTime(2026, 1, 7, 9, 0, 0, DateTimeKind.Utc) },
+            new() { StartDate = new DateTime(2026, 1, 12, 9, 0, 0, DateTimeKind.Utc) }
+        };
+
+        var service = CreateService(hospitalizations: hospitalizations);
+
+        var result = await service.GetHospitalizationTrendAsync(from, to);
+
+        Assert.Equal(ClinicalGranularity.Semana, result.Granularity);
+        Assert.Equal(3, result.Total);
+        Assert.Equal(2, result.Points[0].Count);
+        Assert.Equal(1, result.Points[1].Count);
+        // Las semanas arrancan en lunes.
+        Assert.Equal(new DateTime(2026, 1, 5, 0, 0, 0, DateTimeKind.Utc), result.Points[0].Start);
+    }
+
+    [Fact]
+    public async Task GetHospitalizationTrendAsync_Should_Agrupar_Por_Mes_En_Rangos_Largos()
+    {
+        var from = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 2, 28, 0, 0, 0, DateTimeKind.Utc);
+
+        var hospitalizations = new List<Hospitalization>
+        {
+            new() { StartDate = new DateTime(2025, 1, 20, 9, 0, 0, DateTimeKind.Utc) },
+            new() { StartDate = new DateTime(2025, 1, 25, 9, 0, 0, DateTimeKind.Utc) },
+            new() { StartDate = new DateTime(2026, 2, 3, 9, 0, 0, DateTimeKind.Utc) }
+        };
+
+        var service = CreateService(hospitalizations: hospitalizations);
+
+        var result = await service.GetHospitalizationTrendAsync(from, to);
+
+        Assert.Equal(ClinicalGranularity.Mes, result.Granularity);
+        Assert.Equal(3, result.Total);
+        // 14 meses, con los vacíos en cero.
+        Assert.Equal(14, result.Points.Count);
+        Assert.Equal(2, result.Points[0].Count);
+        Assert.Equal(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), result.Points[0].Start);
+        Assert.Equal(1, result.Points[^1].Count);
     }
 
     [Fact]

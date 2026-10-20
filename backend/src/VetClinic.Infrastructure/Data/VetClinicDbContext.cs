@@ -77,6 +77,7 @@ public class VetClinicDbContext : DbContext
             e.Property(u => u.PasswordHash).HasMaxLength(200).IsRequired();
             e.Property(u => u.FullName).HasMaxLength(120).IsRequired();
             e.Property(u => u.Email).HasMaxLength(150);
+            e.Property(u => u.SecurityQuestionsJson).HasMaxLength(2000);
             e.HasIndex(u => u.Username).IsUnique();
             e.HasIndex(u => u.PinAccess).IsUnique();
             e.HasOne(u => u.Role).WithMany(r => r.Users).HasForeignKey(u => u.RoleId).OnDelete(DeleteBehavior.Restrict);

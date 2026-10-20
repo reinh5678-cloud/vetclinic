@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VetClinic.Api.Serialization;
 using VetClinic.Application.Interfaces;
 
 namespace VetClinic.Api.Controllers;
@@ -19,7 +20,7 @@ public class ReportsController : ControllerBase
     {
         if (from == default) from = DateTime.UtcNow.AddMonths(-1);
         if (to == default) to = DateTime.UtcNow;
-        return Ok(await _service.GetDashboardAsync(from, to, ct));
+        return Ok(await _service.GetDashboardAsync(UtcDateTimeConverter.ToUtc(from), UtcDateTimeConverter.ToUtc(to), ct));
     }
 
     [HttpGet("revenues")]
@@ -28,13 +29,22 @@ public class ReportsController : ControllerBase
     {
         if (from == default) from = DateTime.UtcNow.AddYears(-1);
         if (to == default) to = DateTime.UtcNow;
-        return Ok(await _service.GetRevenuesAsync(from, to, ct));
+        return Ok(await _service.GetRevenuesAsync(UtcDateTimeConverter.ToUtc(from), UtcDateTimeConverter.ToUtc(to), ct));
     }
 
     [HttpGet("retention")]
     [Authorize(Roles = "Administrador")]
     public async Task<IActionResult> Retention(CancellationToken ct) =>
         Ok(await _service.GetClientRetentionAsync(ct));
+
+    [HttpGet("hospitalizations")]
+    [Authorize(Roles = "Administrador")]
+    public async Task<IActionResult> Hospitalizations([FromQuery] DateTime from, [FromQuery] DateTime to, CancellationToken ct)
+    {
+        if (from == default) from = DateTime.UtcNow.AddDays(-29);
+        if (to == default) to = DateTime.UtcNow;
+        return Ok(await _service.GetHospitalizationTrendAsync(UtcDateTimeConverter.ToUtc(from), UtcDateTimeConverter.ToUtc(to), ct));
+    }
 
     [HttpGet("operations")]
     public async Task<IActionResult> Operations(CancellationToken ct) =>

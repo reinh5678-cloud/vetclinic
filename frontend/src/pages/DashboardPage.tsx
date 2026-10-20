@@ -16,6 +16,7 @@ import {
 import { formatCurrency, formatMonth, formatNumber, formatTime } from '../lib/format';
 import StatCard, { type StatCardProps } from '../components/dashboard/StatCard';
 import TrendChart from '../components/dashboard/TrendChart';
+import MonthBars from '../components/dashboard/MonthBars';
 import RetentionGauge from '../components/dashboard/RetentionGauge';
 import { Icons } from '../components/dashboard/icons';
 
@@ -108,6 +109,27 @@ export default function DashboardPage() {
 
   const range = useMemo(() => computeRange(preset, customFrom, customTo), [preset, customFrom, customTo]);
 
+  // Los dos gráficos de barras comparten un rango fijo de 12 meses (independiente del
+  // período elegido) para que las columnas de mes queden alineadas entre sí.
+  const trendRange = useMemo(() => {
+    const now = new Date();
+    return { from: startOfDay(new Date(now.getFullYear(), now.getMonth() - 11, 1)), to: endOfDay(now) };
+  }, []);
+
+  const monthAxis = useMemo(() => {
+    const months: { year: number; month: number; label: string }[] = [];
+    const cursor = new Date(trendRange.from.getFullYear(), trendRange.from.getMonth(), 1);
+    while (cursor <= trendRange.to) {
+      months.push({
+        year: cursor.getFullYear(),
+        month: cursor.getMonth() + 1,
+        label: formatMonth(cursor.getFullYear(), cursor.getMonth() + 1),
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return months;
+  }, [trendRange]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -115,11 +137,8 @@ export default function DashboardPage() {
       const tasks: Promise<unknown>[] = [getOperations().then(setOperations)];
 
       if (canReports) {
-        const now = new Date();
-        const trendFrom = startOfDay(new Date(now.getFullYear(), now.getMonth() - 11, 1));
-        const trendTo = endOfDay(now);
         tasks.push(getDashboard(range.from.toISOString(), range.to.toISOString()).then(setDashboard));
-        tasks.push(getRevenues(trendFrom.toISOString(), trendTo.toISOString()).then(setRevenues));
+        tasks.push(getRevenues(trendRange.from.toISOString(), trendRange.to.toISOString()).then(setRevenues));
         tasks.push(getRetention().then(setRetention));
       }
       if (canInventory) {
@@ -133,7 +152,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [canReports, canInventory, range]);
+  }, [canReports, canInventory, range, trendRange]);
 
   useEffect(() => {
     load();
@@ -152,7 +171,6 @@ export default function DashboardPage() {
     }
     if (operations && canMedical) {
       cards.push({ label: 'Vacunas próximas (30 d)', value: formatNumber(operations.upcomingVaccines), icon: Icons.vaccine, tone: 'teal', onNavigate: () => navigate('/historia') });
-      cards.push({ label: 'Recordatorios pendientes', value: formatNumber(operations.pendingReminders), icon: Icons.reminder, tone: 'blue' });
     }
     if (operations && canInvoices) {
       cards.push({ label: 'Facturas sin cobrar', value: formatNumber(operations.unpaidInvoicesCount), hint: formatCurrency(operations.unpaidInvoicesAmount), icon: Icons.money, tone: 'emerald', onNavigate: () => navigate('/facturacion') });
@@ -167,19 +185,35 @@ export default function DashboardPage() {
       delta == null
         ? 'Sin período anterior comparable'
         : `${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta).toLocaleString('es-AR')}% vs período anterior`;
-    const cards: StatCardProps[] = [
+const cards: StatCardProps[] = [
       { label: 'Ingresos (pagadas)', value: formatCurrency(dashboard.revenue), icon: Icons.revenue, tone: 'teal', hint: deltaHint },
-      { label: 'Facturas (pagadas)', value: formatNumber(dashboard.invoicesCount), icon: Icons.invoice, tone: 'blue', onNavigate: () => navigate('/facturacion') },
       { label: 'Pacientes', value: formatNumber(dashboard.petsTotal), icon: Icons.pets, tone: 'indigo', onNavigate: () => navigate('/pacientes') },
-      { label: 'Clientes', value: formatNumber(dashboard.clientsTotal), icon: Icons.clients, tone: 'purple' },
+      { label: 'Clientes', value: formatNumber(dashboard.clientsTotal), icon: Icons.clients, tone: 'purple', onNavigate: () => navigate('/pacientes?tab=tutores') },
       { label: 'Citas programadas (período)', value: formatNumber(dashboard.appointmentsScheduled), icon: Icons.calendar, tone: 'amber', onNavigate: () => navigate('/agenda') },
       { label: 'Stock bajo', value: formatNumber(dashboard.lowStockItems), icon: Icons.warning, tone: 'rose', onNavigate: () => navigate('/inventario') },
     ];
     return cards;
   }, [dashboard, navigate]);
 
+  // Meses sin facturas pintan barra de altura 0 en vez de desaparecer del eje.
   const trendPoints = useMemo(
-    () => (revenues?.byMonth ?? []).map((p) => ({ label: formatMonth(p.year, p.month), value: p.total })),
+    () => monthAxis.map((m) => ({
+      label: m.label,
+      value: revenues?.byMonth.find((p) => p.year === m.year && p.month === m.month)?.total ?? 0,
+    })),
+    [monthAxis, revenues],
+  );
+
+  const invoiceTrendPoints = useMemo(
+    () => monthAxis.map((m) => ({
+      label: m.label,
+      value: revenues?.byMonth.find((p) => p.year === m.year && p.month === m.month)?.invoicesCount ?? 0,
+    })),
+    [monthAxis, revenues],
+  );
+
+  const invoicesPaidTotal = useMemo(
+    () => (revenues?.byMonth ?? []).reduce((sum, p) => sum + p.invoicesCount, 0),
     [revenues],
   );
 
@@ -263,7 +297,7 @@ export default function DashboardPage() {
         <section className="space-y-3">
           <h3 className="section-title">Finanzas · {presetLabels[preset].toLowerCase()}</h3>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {!dashboard && loading && Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+            {!dashboard && loading && Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)}
             {financialCards.map((c) => <StatCard key={c.label} {...c} />)}
           </div>
 
@@ -283,6 +317,24 @@ export default function DashboardPage() {
                 <div className="h-40 animate-pulse rounded-xl bg-slate-100" />
               )}
             </div>
+          </div>
+
+          <div className="card card-pad">
+            <div className="mb-4 flex items-center justify-between">
+              <h4 className="section-title">Facturas pagadas · últimos 12 meses</h4>
+              <span className="text-sm text-slate-400">
+                Total: {formatNumber(invoicesPaidTotal)} {invoicesPaidTotal === 1 ? 'factura' : 'facturas'}
+              </span>
+            </div>
+            {revenues ? (
+              <MonthBars
+                points={invoiceTrendPoints}
+                description="Facturas pagadas por mes"
+                emptyText="Sin facturas pagadas en los últimos 12 meses."
+              />
+            ) : (
+              <div className="h-40 animate-pulse rounded-xl bg-slate-100" />
+            )}
           </div>
         </section>
       )}
